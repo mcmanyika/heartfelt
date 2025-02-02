@@ -1,7 +1,8 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/utils/supabase/client'
 import Header from './components/layout/Header'
 import {  Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
 import UsersList from './components/UsersList'
@@ -12,6 +13,19 @@ export default function Home() {
   const router = useRouter()
   const pathname = usePathname()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  
+  useEffect(() => {
+    const supabase = createClient()
+    
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/auth/signin')
+      }
+    }
+    
+    checkUser()
+  }, [router])
 
   return (
     <div className="flex min-h-screen bg-gray-50">
