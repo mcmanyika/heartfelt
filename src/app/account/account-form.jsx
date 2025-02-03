@@ -1,14 +1,14 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
+import { toast } from 'react-toastify'
 import Avatar from './avatar'
-
+import Base from '../components/layout/Base'
 export default function AccountForm({ user }) {
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
-  const [fullname, setFullname] = useState(null)
-  const [username, setUsername] = useState(null)
-  const [website, setWebsite] = useState(null)
+  const [firstName, setFirstName] = useState(null)
+  const [lastName, setLastName] = useState(null)
   const [avatar_url, setAvatarUrl] = useState(null)
 
   const getProfile = useCallback(async () => {
@@ -17,7 +17,7 @@ export default function AccountForm({ user }) {
 
       const { data, error, status } = await supabase
         .from('profiles')
-        .select(`full_name, username, website, avatar_url`)
+        .select(`first_name, last_name, avatar_url`)
         .eq('id', user?.id)
         .single()
 
@@ -26,13 +26,19 @@ export default function AccountForm({ user }) {
       }
 
       if (data) {
-        setFullname(data.full_name)
-        setUsername(data.username)
-        setWebsite(data.website)
+        setFirstName(data.first_name)
+        setLastName(data.last_name)
         setAvatarUrl(data.avatar_url)
       }
     } catch (error) {
-      alert('Error loading user data!')
+      toast.error('Error loading user data!', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      })
     } finally {
       setLoading(false)
     }
@@ -42,29 +48,45 @@ export default function AccountForm({ user }) {
     getProfile()
   }, [user, getProfile])
 
-  async function updateProfile({ username, website, avatar_url }) {
+  async function updateProfile({ firstName, lastName, avatar_url }) {
     try {
       setLoading(true)
 
       const { error } = await supabase.from('profiles').upsert({
         id: user?.id,
-        full_name: fullname,
-        username,
-        website,
+        first_name: firstName,
+        last_name: lastName,
         avatar_url,
         updated_at: new Date().toISOString(),
       })
       if (error) throw error
-      alert('Profile updated!')
+      toast.success('Profile updated successfully!', {
+        position: "bottom-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        theme: "dark"
+      })
     } catch (error) {
-      alert('Error updating the data!')
+      toast.error('Error updating profile!', {
+        position: "bottom-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        theme: "dark"
+      })
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="max-w-xl mx-auto p-6 space-y-8 bg-white rounded-xl shadow-lg">
+    <Base>
+    <div className="max-w-2xl mt-6 p-6 space-y-8 bg-white rounded-xl shadow-lg">
       <div className="flex justify-center">
         <Avatar
           uid={user?.id}
@@ -72,7 +94,7 @@ export default function AccountForm({ user }) {
           size={150}
           onUpload={(url) => {
             setAvatarUrl(url)
-            updateProfile({ fullname, username, website, avatar_url: url })
+            updateProfile({ firstName, lastName, avatar_url: url })
           }}
         />
       </div>
@@ -87,32 +109,22 @@ export default function AccountForm({ user }) {
         />
       </div>
       <div className="space-y-2">
-        <label htmlFor="fullName" className="block text-sm font-semibold text-gray-600">Full Name</label>
+        <label htmlFor="firstName" className="block text-sm font-semibold text-gray-600">First Name</label>
         <input
-          id="fullName"
+          id="firstName"
           type="text"
-          value={fullname || ''}
-          onChange={(e) => setFullname(e.target.value)}
+          value={firstName || ''}
+          onChange={(e) => setFirstName(e.target.value)}
           className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-300 transition-colors"
         />
       </div>
       <div className="space-y-2">
-        <label htmlFor="username" className="block text-sm font-semibold text-gray-600">Username</label>
+        <label htmlFor="lastName" className="block text-sm font-semibold text-gray-600">Last Name</label>
         <input
-          id="username"
+          id="lastName"
           type="text"
-          value={username || ''}
-          onChange={(e) => setUsername(e.target.value)}
-          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-300 transition-colors"
-        />
-      </div>
-      <div className="space-y-2">
-        <label htmlFor="website" className="block text-sm font-semibold text-gray-600">Website</label>
-        <input
-          id="website"
-          type="url"
-          value={website || ''}
-          onChange={(e) => setWebsite(e.target.value)}
+          value={lastName || ''}
+          onChange={(e) => setLastName(e.target.value)}
           className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-300 transition-colors"
         />
       </div>
@@ -120,7 +132,7 @@ export default function AccountForm({ user }) {
       <div className="pt-4">
         <button
           className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600 disabled:hover:shadow-none"
-          onClick={() => updateProfile({ fullname, username, website, avatar_url })}
+          onClick={() => updateProfile({ firstName, lastName, avatar_url })}
           disabled={loading}
         >
           {loading ? (
@@ -134,17 +146,7 @@ export default function AccountForm({ user }) {
           ) : 'Update Profile'}
         </button>
       </div>
-
-      <div className="pt-2">
-        <form action="/auth/signout" method="post">
-          <button 
-            className="w-full py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-all duration-200 border border-gray-200 hover:border-gray-300"
-            type="submit"
-          >
-            Sign out
-          </button>
-        </form>
-      </div>
     </div>
+    </Base>
   )
 }
