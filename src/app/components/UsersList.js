@@ -8,11 +8,9 @@ export default function UsersList() {
   const [error, setError] = useState(null)
   const [selectedUser, setSelectedUser] = useState(null)
   const [showModal, setShowModal] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [sortConfig, setSortConfig] = useState({
-    key: null,
-    direction: 'asc'
-  })
+  const [sortField, setSortField] = useState(null)
+  const [sortDirection, setSortDirection] = useState('asc')
+  const [filterText, setFilterText] = useState('')
 
   useEffect(() => {
     async function fetchUsers() {
@@ -37,40 +35,37 @@ export default function UsersList() {
     setShowModal(true)
   }
 
-  const filteredUsers = users.filter(user => {
-    const searchLower = searchTerm.toLowerCase()
-    return (
-      user.first_name?.toLowerCase().includes(searchLower) ||
-      user.last_name?.toLowerCase().includes(searchLower) ||
-      user.user_type?.toLowerCase().includes(searchLower)
-    )
-  })
-
-  const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
     }
-    setSortConfig({ key, direction });
-  };
+  }
 
-  const sortedUsers = [...filteredUsers].sort((a, b) => {
-    if (!sortConfig.key) return 0;
-
-    const aValue = (a[sortConfig.key] || '').toLowerCase();
-    const bValue = (b[sortConfig.key] || '').toLowerCase();
-
-    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-    return 0;
-  });
-
-  const getSortIcon = (columnKey) => {
-    if (sortConfig.key !== columnKey) {
-      return '↕️';
-    }
-    return sortConfig.direction === 'asc' ? '↑' : '↓';
-  };
+  const filteredAndSortedUsers = users
+    .filter(user => {
+      const searchText = filterText.toLowerCase()
+      return (
+        user.first_name?.toLowerCase().includes(searchText) ||
+        user.last_name?.toLowerCase().includes(searchText) ||
+        user.user_type?.toLowerCase().includes(searchText) ||
+        user.status?.toLowerCase().includes(searchText)
+      )
+    })
+    .sort((a, b) => {
+      if (!sortField) return 0
+      
+      const aValue = a[sortField] || ''
+      const bValue = b[sortField] || ''
+      
+      if (sortDirection === 'asc') {
+        return aValue.localeCompare(bValue)
+      } else {
+        return bValue.localeCompare(aValue)
+      }
+    })
 
   if (loading) return (
     <div className="flex justify-center p-4">
@@ -83,14 +78,14 @@ export default function UsersList() {
     <div className="bg-white mt-5 mx-auto p-4">
       <h2 className="text-2xl font-bold mb-4">Registered Users</h2>
       
-      {/* Search Input */}
+      {/* Add search input */}
       <div className="mb-4">
         <input
           type="text"
-          placeholder="Search by name or user type..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="Search users..."
+          className="w-full px-4 py-2 border rounded-lg"
+          value={filterText}
+          onChange={(e) => setFilterText(e.target.value)}
         />
       </div>
 
@@ -98,34 +93,24 @@ export default function UsersList() {
         <table className="min-w-full bg-white shadow-md rounded-lg text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort('first_name')}
-              >
-                First Name {getSortIcon('first_name')}
-              </th>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort('last_name')}
-              >
-                Last Name {getSortIcon('last_name')}
-              </th>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort('user_type')}
-              >
-                User Type {getSortIcon('user_type')}
-              </th>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                onClick={() => handleSort('status')}
-              >
-                Status {getSortIcon('status')}
-              </th>
+              {['first_name', 'last_name', 'user_type', 'status'].map((field) => (
+                <th
+                  key={field}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort(field)}
+                >
+                  {field.replace('_', ' ')}
+                  {sortField === field && (
+                    <span className="ml-1">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {sortedUsers.map((user) => (
+            {filteredAndSortedUsers.map((user) => (
               <tr 
                 key={user.id} 
                 className="text-sm hover:bg-gray-50 cursor-pointer transition-colors"
@@ -140,8 +125,9 @@ export default function UsersList() {
           </tbody>
         </table>
       </div>
+      
       <p className="mt-4 text-gray-500 text-sm">
-        Showing {sortedUsers.length} of {users.length} users
+        Showing {filteredAndSortedUsers.length} of {users.length} users
       </p>
 
       {/* User Details Modal */}

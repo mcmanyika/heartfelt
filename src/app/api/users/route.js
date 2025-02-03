@@ -26,3 +26,27 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
+
+export async function PUT(request) {
+  try {
+    // Get the profile data from request body
+    const { id, ...updateData } = await request.json()
+
+    if (!id) {
+      return NextResponse.json({ error: 'Profile ID is required' }, { status: 400 })
+    }
+
+    // Update the profile
+    const { data, error } = await supabaseAdmin
+      .from('profiles')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+
+    if (error) throw error
+
+    return NextResponse.json({ profile: data[0] })
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
