@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 
 export default function UsersList() {
   const [users, setUsers] = useState([])
@@ -183,6 +184,16 @@ export default function UsersList() {
                       <p className="mt-1 text-sm">
                         {selectedUser.updated_at ? new Date(selectedUser.updated_at).toLocaleString() : 'N/A'}
                       </p>
+                    </div>
+                    <div className="mb-4 col-span-2">
+                      <div className="mt-2 flex justify-center p-4 bg-white rounded-lg">
+                        <QRCodeSVG
+                          value={selectedUser.id.toString()}
+                          size={200}
+                          level="H"
+                          includeMargin={true}
+                        />
+                      </div>
                     </div>
                     </div>
                   </div>
