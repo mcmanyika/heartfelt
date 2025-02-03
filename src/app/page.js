@@ -13,6 +13,7 @@ export default function Home() {
   const router = useRouter()
   const pathname = usePathname()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [isSuperUser, setIsSuperUser] = useState(false)
   
   useEffect(() => {
     const supabase = createClient()
@@ -21,7 +22,20 @@ export default function Home() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
         router.push('/auth/signin')
+        return
       }
+
+      // Check if user is super_user and verified
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('user_type, status')
+        .eq('id', session.user.id)
+        .single()
+
+      setIsSuperUser(
+        profile?.user_type === 'super_user' && 
+        profile?.status === 'verified'
+      )
     }
     
     checkUser()
@@ -61,7 +75,7 @@ export default function Home() {
       {/* Main Content */}
       <main className="flex-1 p-8 transition-all duration-300">
           <Header />
-          <UsersList />
+          {isSuperUser && <UsersList />}
       </main>
     </div>
   );

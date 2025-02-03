@@ -10,6 +10,8 @@ export default function AccountForm({ user }) {
   const [firstName, setFirstName] = useState(null)
   const [lastName, setLastName] = useState(null)
   const [avatar_url, setAvatarUrl] = useState(null)
+  const [userType, setUserType] = useState(null)
+  const [status, setStatus] = useState('pending')
 
   const getProfile = useCallback(async () => {
     try {
@@ -17,7 +19,7 @@ export default function AccountForm({ user }) {
 
       const { data, error, status } = await supabase
         .from('profiles')
-        .select(`first_name, last_name, avatar_url`)
+        .select(`first_name, last_name, avatar_url, user_type, status`)
         .eq('id', user?.id)
         .single()
 
@@ -29,6 +31,10 @@ export default function AccountForm({ user }) {
         setFirstName(data.first_name)
         setLastName(data.last_name)
         setAvatarUrl(data.avatar_url)
+        setUserType(data.user_type)
+        if (data.status) {
+          setStatus(data.status)
+        }
       }
     } catch (error) {
       toast.error('Error loading user data!', {
@@ -48,7 +54,7 @@ export default function AccountForm({ user }) {
     getProfile()
   }, [user, getProfile])
 
-  async function updateProfile({ firstName, lastName, avatar_url }) {
+  async function updateProfile({ firstName, lastName, avatar_url, userType, status }) {
     try {
       setLoading(true)
 
@@ -57,6 +63,8 @@ export default function AccountForm({ user }) {
         first_name: firstName,
         last_name: lastName,
         avatar_url,
+        user_type: userType,
+        status,
         updated_at: new Date().toISOString(),
       })
       if (error) throw error
@@ -94,7 +102,7 @@ export default function AccountForm({ user }) {
           size={150}
           onUpload={(url) => {
             setAvatarUrl(url)
-            updateProfile({ firstName, lastName, avatar_url: url })
+            updateProfile({ firstName, lastName, avatar_url: url, userType, status })
           }}
         />
       </div>
@@ -128,11 +136,30 @@ export default function AccountForm({ user }) {
           className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-300 transition-colors"
         />
       </div>
-
+      <div className="space-y-2">
+        <label htmlFor="userType" className="block text-sm font-semibold text-gray-600">User Type</label>
+        <input
+          id="userType"
+          type="text"
+          value={userType || ''}
+          disabled
+          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500"
+        />
+      </div>
+      <div className="space-y-2">
+        <label htmlFor="status" className="block text-sm font-semibold text-gray-600">Status</label>
+        <input
+          id="status"
+          type="text"
+          value={status || ''}
+          disabled
+          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500"
+        />
+      </div>
       <div className="pt-4">
         <button
           className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600 disabled:hover:shadow-none"
-          onClick={() => updateProfile({ firstName, lastName, avatar_url })}
+          onClick={() => updateProfile({ firstName, lastName, avatar_url, userType, status })}
           disabled={loading}
         >
           {loading ? (

@@ -8,10 +8,20 @@ const supabaseAdmin = createClient(
 
 export async function GET() {
   try {
-    const { data, error } = await supabaseAdmin.auth.admin.listUsers()
-    if (error) throw error
+    // Get users
+    const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers()
+    if (usersError) throw usersError
 
-    return NextResponse.json({ users: data.users })
+    // Get profiles
+    const { data: profilesData, error: profilesError } = await supabaseAdmin
+      .from('profiles')
+      .select('*')
+    if (profilesError) throw profilesError
+
+    return NextResponse.json({ 
+      users: usersData.users,
+      profiles: profilesData 
+    })
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
