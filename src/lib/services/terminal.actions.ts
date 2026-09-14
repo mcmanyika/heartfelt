@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   createTerminal,
+  searchTerminalMembers,
   setTerminalStatus,
   simulateTerminalPayment,
   updateTerminal,
@@ -43,6 +44,10 @@ export async function setTerminalStatusAction(terminalId: string, status: Termin
   revalidatePath(`/admin/terminals/${terminalId}`);
   revalidatePath("/admin/dashboard");
   return { ok: true as const };
+}
+
+export async function searchTerminalMembersAction(input: unknown) {
+  return searchTerminalMembers(input);
 }
 
 export async function simulateTerminalPaymentAction(input: unknown) {

@@ -1,4 +1,5 @@
 import { listPageCount, listRange, parseListPage, searchPattern } from "@/lib/admin/list-page";
+import type { SortDir } from "@/lib/admin/sort";
 import { requireRole } from "@/lib/auth/require-role";
 import { createClient } from "@/lib/supabase/server";
 import { writeAuditLog } from "@/lib/services/audit.service";
@@ -6,6 +7,20 @@ import { emptyToNull, firstZodError, userSafeDatabaseError } from "@/lib/utils/f
 import { logServerError } from "@/lib/utils/log-server-error";
 import { locationSchema } from "@/lib/validators/location.schema";
 import type { Location, LocationStatus } from "@/types";
+
+export const LOCATION_PAGE_SIZE = 20;
+
+export const LOCATION_SORTS = [
+  "name",
+  "code",
+  "city",
+  "country",
+  "members",
+  "terminals",
+  "status",
+] as const;
+
+export type LocationSort = (typeof LOCATION_SORTS)[number];
 
 export type LocationListItem = Location & {
   member_count: number;
@@ -29,10 +44,15 @@ export async function listLocations(query: {
   q?: string;
   status?: LocationStatus | "";
   page?: number;
+  sort?: LocationSort;
+  dir?: SortDir;
 } = {}) {
   const current = await requireRole("SUPER_ADMIN");
   const page = parseListPage(String(query.page ?? 1));
-  const { from, to } = listRange(page);
+  const { from, to } = listRange(page, LOCATION_PAGE_SIZE);
+  const sort = query.sort ?? "name";
+  const ascending = (query.dir ?? "asc") === "asc";
+  const countSort = sort === "members" || sort === "terminals";
   const supabase = await createClient();
   let request = supabase
     .from("locations")
@@ -40,8 +60,7 @@ export async function listLocations(query: {
       "id, organization_id, name, code, country, city, address, phone, email, status, created_at, updated_at, members(count), payment_terminals(count)",
       { count: "exact" },
     )
-    .eq("organization_id", current.organizationId)
-    .order("name");
+    .eq("organization_id", current.organizationId);
 
   if (query.status) {
     request = request.eq("status", query.status);
@@ -54,7 +73,11 @@ export async function listLocations(query: {
     );
   }
 
-  const { data, error, count } = await request.range(from, to);
+  if (!countSort) {
+    request = request.order(sort, { ascending, nullsFirst: false });
+  }
+
+  const { data, error, count } = countSort ? await request : await request.range(from, to);
 
   if (error) {
     logServerError("location.list", error);
@@ -64,17 +87,28 @@ export async function listLocations(query: {
       page,
       total: 0,
       pageCount: 1,
-      pageSize: to - from + 1,
+      pageSize: LOCATION_PAGE_SIZE,
     };
   }
 
   const total = count ?? 0;
+  let locations = ((data ?? []) as unknown as LocationEmbed[]).map(mapLocationRow);
+
+  if (countSort) {
+    const key = sort === "members" ? "member_count" : "terminal_count";
+    locations = [...locations].sort((left, right) => {
+      const delta = left[key] - right[key];
+      return ascending ? delta : -delta;
+    });
+    locations = locations.slice(from, to + 1);
+  }
+
   return {
-    locations: ((data ?? []) as unknown as LocationEmbed[]).map(mapLocationRow),
+    locations,
     page,
     total,
-    pageCount: listPageCount(total),
-    pageSize: to - from + 1,
+    pageCount: listPageCount(total, LOCATION_PAGE_SIZE),
+    pageSize: LOCATION_PAGE_SIZE,
   };
 }
 

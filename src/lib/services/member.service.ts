@@ -1,4 +1,5 @@
 import { getAdminLocationSelection } from "@/lib/auth/admin-location";
+import type { SortDir } from "@/lib/admin/sort";
 import { requireRole } from "@/lib/auth/require-role";
 import type { CurrentUser } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/server";
@@ -8,9 +9,19 @@ import { logServerError } from "@/lib/utils/log-server-error";
 import { memberSchema, memberTransferSchema } from "@/lib/validators/member.schema";
 import type { MembershipStatus } from "@/types";
 
-import { LIST_PAGE_SIZE } from "@/lib/admin/list-page";
+export const MEMBER_PAGE_SIZE = 20;
 
-export const MEMBER_PAGE_SIZE = LIST_PAGE_SIZE;
+export const MEMBER_SORTS = [
+  "membership_number",
+  "name",
+  "location",
+  "phone",
+  "email",
+  "status",
+  "date_joined",
+] as const;
+
+export type MemberSort = (typeof MEMBER_SORTS)[number];
 
 export type MemberListItem = {
   id: string;
@@ -142,7 +153,8 @@ export type MemberListQuery = {
   locationId?: string;
   status?: MembershipStatus | "";
   page?: number;
-  sort?: "date_joined" | "membership_number" | "name";
+  sort?: MemberSort;
+  dir?: SortDir;
 };
 
 function resolveScopedLocation(current: CurrentUser, requested?: string) {
@@ -191,12 +203,21 @@ export async function listMembers(query: MemberListQuery = {}) {
   }
 
   const sort = query.sort ?? "date_joined";
+  const ascending = (query.dir ?? (sort === "date_joined" ? "desc" : "asc")) === "asc";
+  const options = { ascending, nullsFirst: false as const };
+
   if (sort === "name") {
-    request = request.order("first_name", { ascending: true }).order("last_name", { ascending: true });
-  } else if (sort === "membership_number") {
-    request = request.order("membership_number", { ascending: true });
+    request = request
+      .order("first_name", options)
+      .order("last_name", options);
+  } else if (sort === "location") {
+    request = request.order("locations(name)" as never, options as never);
+  } else if (sort === "status") {
+    request = request.order("membership_status", options);
+  } else if (sort === "membership_number" || sort === "phone" || sort === "email" || sort === "date_joined") {
+    request = request.order(sort, options);
   } else {
-    request = request.order("date_joined", { ascending: false });
+    request = request.order("date_joined", { ascending: false, nullsFirst: false });
   }
 
   const { data, error, count } = await request.range(from, to);

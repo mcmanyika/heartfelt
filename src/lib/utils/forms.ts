@@ -16,6 +16,10 @@ export function userSafeDatabaseError(message: string) {
     return "A location with this code already exists.";
   }
 
+  if (normalized.includes("user_roles_unique")) {
+    return "That role is already assigned.";
+  }
+
   if (normalized.includes("members_organization_id_membership_number")) {
     return "A member with this membership number already exists.";
   }

@@ -4,11 +4,13 @@ import { fieldClassName } from "@/components/ui/form-field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
+import { SortHeader } from "@/components/ui/sort-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { withQuery } from "@/lib/admin/query-string";
 import { parseListPage } from "@/lib/admin/list-page";
+import { parseSortColumn, parseSortDir } from "@/lib/admin/sort";
 import { requireRole } from "@/lib/auth/require-role";
-import { listAnnouncements } from "@/lib/services/announcement.service";
+import { ANNOUNCEMENT_SORTS, listAnnouncements } from "@/lib/services/announcement.service";
 import { canMutateContent, CONTENT_ROLES } from "@/lib/services/event.service";
 import { announcementStatusLabel, announcementVisibility, formatDateTime } from "@/lib/utils/format";
 import {
@@ -22,6 +24,8 @@ type AnnouncementsPageProps = {
     location?: string;
     status?: string;
     page?: string;
+    sort?: string;
+    dir?: string;
   }>;
 };
 
@@ -31,23 +35,30 @@ export default async function AdminAnnouncementsPage({ searchParams }: Announcem
   const status = ANNOUNCEMENT_STATUS_FILTERS.includes(params.status as AnnouncementStatusFilter)
     ? (params.status as AnnouncementStatusFilter)
     : "all";
+  const sort = parseSortColumn(params.sort, ANNOUNCEMENT_SORTS, "publish");
+  const dir = parseSortDir(params.dir, "desc");
   const result = await listAnnouncements({
     q: params.q,
     locationId: current.isSuperAdmin ? params.location : undefined,
     status,
     page: parseListPage(params.page),
+    sort,
+    dir,
   });
   const query = {
     q: params.q,
     location: current.isSuperAdmin ? params.location : undefined,
     status,
+    sort,
+    dir,
   };
+  const sortHref = (nextSort: string, nextDir: typeof dir) =>
+    withQuery("/admin/announcements", query, { sort: nextSort, dir: nextDir, page: undefined });
 
   return (
     <>
       <PageHeader
         title="Announcements"
-        description="Share updates with the organization or a single campus. Expired notices stay hidden from members."
         actions={
           <Link
             href="/admin/announcements/new"
@@ -81,6 +92,8 @@ export default async function AdminAnnouncementsPage({ searchParams }: Announcem
           <option value="scheduled">Scheduled</option>
           <option value="expired">Expired</option>
         </select>
+        <input type="hidden" name="sort" value={sort} />
+        <input type="hidden" name="dir" value={dir} />
         <div>
           <button type="submit" className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white">
             Apply filters
@@ -97,10 +110,17 @@ export default async function AdminAnnouncementsPage({ searchParams }: Announcem
       <DataTable isEmpty={result.announcements.length === 0} emptyTitle="No announcements match these filters">
         <DataTableHead>
           <tr>
-            <th className="px-4 py-3">Announcement</th>
-            <th className="px-4 py-3">Location</th>
-            <th className="px-4 py-3">Publish</th>
-            <th className="px-4 py-3">Status</th>
+            <SortHeader label="Announcement" column="title" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Location" column="location" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader
+              label="Publish"
+              column="publish"
+              sort={sort}
+              dir={dir}
+              hrefFor={sortHref}
+              defaultDir="desc"
+            />
+            <SortHeader label="Status" column="status" sort={sort} dir={dir} hrefFor={sortHref} />
             <th className="px-4 py-3">Actions</th>
           </tr>
         </DataTableHead>

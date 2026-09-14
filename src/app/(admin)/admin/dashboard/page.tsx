@@ -3,31 +3,22 @@ import { DashboardCharts } from "@/components/charts/dashboard-charts";
 import { EmptyState } from "@/components/ui/empty-state";
 import { fieldClassName } from "@/components/ui/form-field";
 import { PageHeader } from "@/components/ui/page-header";
-import { StatCard } from "@/components/ui/stat-card";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { SearchInput } from "@/components/ui/search-input";
+import { StatCard } from "@/components/ui/stat-card";
 import { getDashboardData, parseDashboardRange } from "@/lib/services/dashboard.service";
-import { formatAmount, formatDate, formatDateTime, formatTotals, paymentMethodLabel, terminalStatusLabel } from "@/lib/utils/format";
-import { TERMINAL_STATUSES } from "@/lib/validators/terminal.schema";
-import type { TerminalStatus } from "@/types";
+import { formatAmount, formatDate, formatDateTime, formatTotals, paymentMethodLabel } from "@/lib/utils/format";
 
 type DashboardPageProps = {
-  searchParams: Promise<{ from?: string; to?: string; q?: string; terminal_status?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; q?: string }>;
 };
 
 export default async function AdminDashboardPage({ searchParams }: DashboardPageProps) {
   const params = await searchParams;
   const range = parseDashboardRange(params.from, params.to);
-  const data = await getDashboardData(range, {
-    q: params.q,
-    terminalStatus: params.terminal_status,
-  });
+  const data = await getDashboardData(range, { q: params.q });
   const scope = data.selection.location
     ? `${data.selection.location.name} (${data.selection.location.code})`
     : "all locations";
-  const terminalStatus = TERMINAL_STATUSES.includes(params.terminal_status as TerminalStatus)
-    ? (params.terminal_status as TerminalStatus)
-    : "";
   const currencies = data.summary.totals.map((total) => total.currency);
   const givingOverTime = Object.keys(data.summary.byMonth)
     .sort()
@@ -40,7 +31,6 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
     <>
       <PageHeader
         title="Dashboard"
-        description={`Overview for ${scope}. Location follows the header selector. Amounts stay in their original currency.`}
         actions={
           <Link
             href={`/admin/reports?from=${range.from}&to=${range.to}`}
@@ -53,19 +43,6 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
 
       <form className="mb-5 grid gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm md:grid-cols-4">
         <SearchInput defaultValue={params.q} placeholder="Search listings" />
-        <select
-          name="terminal_status"
-          defaultValue={terminalStatus}
-          className={fieldClassName}
-          aria-label="Filter terminals by status"
-        >
-          <option value="">All terminal statuses</option>
-          {TERMINAL_STATUSES.map((value) => (
-            <option key={value} value={value}>
-              {terminalStatusLabel(value)}
-            </option>
-          ))}
-        </select>
         <label className="text-sm font-medium text-navy">
           From
           <input
@@ -79,7 +56,7 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
           To
           <input type="date" name="to" defaultValue={range.to} className={`${fieldClassName} mt-1.5`} />
         </label>
-        <div className="md:col-span-4">
+        <div>
           <button type="submit" className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white">
             Apply filters
           </button>
@@ -150,34 +127,6 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
             extra: formatDate(member.date_joined),
           }))}
         />
-        <FeedCard
-          title="Terminal Status"
-          href="/admin/terminals"
-          empty={params.q || terminalStatus ? "No matching terminals" : "No terminals yet"}
-          items={data.terminals.map((terminal) => {
-            const location = Array.isArray(terminal.locations)
-              ? terminal.locations[0]
-              : terminal.locations;
-            return {
-              id: terminal.id,
-              title: terminal.device_name,
-              meta: `${terminal.terminal_code}${location ? ` · ${location.name}` : ""}`,
-              extra: terminal.status,
-              status: terminal.status,
-            };
-          })}
-        />
-        <FeedCard
-          title="Upcoming Events"
-          href={data.current.isSuperAdmin || data.current.isLocationAdmin ? "/admin/events" : undefined}
-          empty={params.q ? "No matching events" : "No upcoming events"}
-          items={data.events.map((event) => ({
-            id: event.id,
-            title: event.title,
-            meta: event.location_name ?? "All locations",
-            extra: formatDateTime(event.start_date),
-          }))}
-        />
       </section>
     </>
   );
@@ -192,7 +141,7 @@ function FeedCard({
   title: string;
   href?: string;
   empty: string;
-  items: Array<{ id: string; title: string; meta: string; extra: string; status?: string }>;
+  items: Array<{ id: string; title: string; meta: string; extra: string }>;
 }) {
   return (
     <div className="space-y-3">
@@ -209,13 +158,10 @@ function FeedCard({
       ) : (
         <ul className="divide-y divide-border rounded-2xl border border-border bg-card shadow-sm">
           {items.map((item) => (
-            <li key={item.id} className="flex items-center justify-between gap-3 px-4 py-3">
-              <div>
-                <p className="text-sm font-medium text-navy">{item.title}</p>
-                <p className="text-xs text-gray-500">{item.meta}</p>
-                {item.status ? null : <p className="text-xs text-gray-500">{item.extra}</p>}
-              </div>
-              {item.status ? <StatusBadge status={item.status} /> : null}
+            <li key={item.id} className="px-4 py-3">
+              <p className="text-sm font-medium text-navy">{item.title}</p>
+              <p className="text-xs text-gray-500">{item.meta}</p>
+              <p className="text-xs text-gray-500">{item.extra}</p>
             </li>
           ))}
         </ul>

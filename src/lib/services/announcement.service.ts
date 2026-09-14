@@ -1,4 +1,5 @@
 import { listPageCount, listRange, parseListPage, searchPattern } from "@/lib/admin/list-page";
+import type { SortDir } from "@/lib/admin/sort";
 import { getAdminLocationSelection } from "@/lib/auth/admin-location";
 import { requireRole } from "@/lib/auth/require-role";
 import type { CurrentUser } from "@/lib/auth/types";
@@ -6,12 +7,18 @@ import { canMutateContent, CONTENT_ROLES } from "@/lib/services/event.service";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { createClient } from "@/lib/supabase/server";
 import { firstZodError, userSafeDatabaseError } from "@/lib/utils/forms";
-import { fromDateTimeLocalValue } from "@/lib/utils/format";
+import { announcementVisibility, fromDateTimeLocalValue } from "@/lib/utils/format";
 import { logServerError } from "@/lib/utils/log-server-error";
 import {
   announcementSchema,
   type AnnouncementStatusFilter,
 } from "@/lib/validators/announcement.schema";
+
+export const ANNOUNCEMENT_PAGE_SIZE = 20;
+
+export const ANNOUNCEMENT_SORTS = ["title", "location", "publish", "status"] as const;
+
+export type AnnouncementSort = (typeof ANNOUNCEMENT_SORTS)[number];
 
 export type AnnouncementListItem = {
   id: string;
@@ -103,20 +110,25 @@ export async function listAnnouncements(query: {
   locationId?: string;
   status?: AnnouncementStatusFilter | "";
   page?: number;
+  sort?: AnnouncementSort;
+  dir?: SortDir;
 } = {}) {
   const current = await requireRole(CONTENT_ROLES);
   const locationId = await resolveListLocation(current, query.locationId);
   const status = query.status || "all";
   const page = parseListPage(String(query.page ?? 1));
-  const { from, to } = listRange(page);
+  const { from, to } = listRange(page, ANNOUNCEMENT_PAGE_SIZE);
+  const sort = query.sort ?? "publish";
+  const ascending = (query.dir ?? "desc") === "asc";
+  const options = { ascending, nullsFirst: false as const };
+  const statusSort = sort === "status";
   const supabase = await createClient();
   const now = new Date().toISOString();
 
   let request = supabase
     .from("announcements")
     .select(ANNOUNCEMENT_SELECT, { count: "exact" })
-    .eq("organization_id", current.organizationId)
-    .order("publish_date", { ascending: false });
+    .eq("organization_id", current.organizationId);
 
   if (locationId) {
     request = request.or(`location_id.eq.${locationId},location_id.is.null`);
@@ -134,7 +146,15 @@ export async function listAnnouncements(query: {
     request = request.or(`title.ilike.${pattern},message.ilike.${pattern}`);
   }
 
-  const { data, error, count } = await request.range(from, to);
+  if (sort === "title") {
+    request = request.order("title", options);
+  } else if (sort === "location") {
+    request = request.order("locations(name)" as never, options as never);
+  } else if (!statusSort) {
+    request = request.order("publish_date", options);
+  }
+
+  const { data, error, count } = statusSort ? await request : await request.range(from, to);
   if (error) {
     logServerError("announcement.list", error);
     return {
@@ -144,18 +164,31 @@ export async function listAnnouncements(query: {
       page,
       total: 0,
       pageCount: 1,
-      pageSize: to - from + 1,
+      pageSize: ANNOUNCEMENT_PAGE_SIZE,
     };
   }
 
   const total = count ?? 0;
+  let announcements = ((data ?? []) as Array<Record<string, unknown>>).map(mapAnnouncement);
+
+  if (statusSort) {
+    const rank = { SCHEDULED: 0, PUBLISHED: 1, EXPIRED: 2 };
+    announcements = [...announcements].sort((left, right) => {
+      const delta =
+        rank[announcementVisibility(left.publish_date, left.expiry_date)] -
+        rank[announcementVisibility(right.publish_date, right.expiry_date)];
+      return ascending ? delta : -delta;
+    });
+    announcements = announcements.slice(from, to + 1);
+  }
+
   return {
-    announcements: ((data ?? []) as Array<Record<string, unknown>>).map(mapAnnouncement),
+    announcements,
     locationId,
     page,
     total,
-    pageCount: listPageCount(total),
-    pageSize: to - from + 1,
+    pageCount: listPageCount(total, ANNOUNCEMENT_PAGE_SIZE),
+    pageSize: ANNOUNCEMENT_PAGE_SIZE,
   };
 }
 

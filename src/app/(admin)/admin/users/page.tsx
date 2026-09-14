@@ -1,13 +1,17 @@
 import { ProfileStatusSelect } from "@/components/admin/profile-status-select";
+import { UserRolesDialog } from "@/components/admin/user-roles-dialog";
 import { DataTable, DataTableBody, DataTableHead } from "@/components/ui/data-table";
 import { fieldClassName } from "@/components/ui/form-field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
+import { SortHeader } from "@/components/ui/sort-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { withQuery } from "@/lib/admin/query-string";
+import { parseSortColumn, parseSortDir } from "@/lib/admin/sort";
 import { roleLabel } from "@/lib/auth/permissions";
-import { listDirectoryUsers, USER_PAGE_SIZE } from "@/lib/services/user.service";
+import { listStaffLocations } from "@/lib/services/member.service";
+import { listDirectoryUsers, USER_SORTS } from "@/lib/services/user.service";
 import { profileStatusLabel } from "@/lib/utils/format";
 import { APP_ROLES, PROFILE_STATUSES } from "@/types";
 
@@ -17,6 +21,8 @@ type UsersPageProps = {
     role?: string;
     status?: string;
     page?: string;
+    sort?: string;
+    dir?: string;
   }>;
 };
 
@@ -28,25 +34,32 @@ export default async function AdminUsersPage({ searchParams }: UsersPageProps) {
   const status = PROFILE_STATUSES.includes(params.status as (typeof PROFILE_STATUSES)[number])
     ? params.status
     : undefined;
-  const result = await listDirectoryUsers({
-    q: params.q,
-    role,
-    status,
-    page: Number(params.page ?? "1") || 1,
-  });
+  const sort = parseSortColumn(params.sort, USER_SORTS, "name");
+  const dir = parseSortDir(params.dir, "asc");
+  const [result, staffLocations] = await Promise.all([
+    listDirectoryUsers({
+      q: params.q,
+      role,
+      status,
+      page: Number(params.page ?? "1") || 1,
+      sort,
+      dir,
+    }),
+    listStaffLocations(),
+  ]);
   const query = {
     q: params.q,
     role,
     status,
+    sort,
+    dir,
   };
-  const pageCount = Math.max(1, Math.ceil(result.total / USER_PAGE_SIZE));
+  const sortHref = (nextSort: string, nextDir: typeof dir) =>
+    withQuery("/admin/users", query, { sort: nextSort, dir: nextDir, page: undefined });
 
   return (
     <>
-      <PageHeader
-        title="Users"
-        description="Review accounts, roles, and campus assignments. Status changes are Super Admin only and are written to the audit log. New Auth users are created outside this screen."
-      />
+      <PageHeader title="Users" />
 
       <form className="mb-5 grid gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm md:grid-cols-4">
         <SearchInput defaultValue={params.q} placeholder="Search name or phone" />
@@ -71,6 +84,8 @@ export default async function AdminUsersPage({ searchParams }: UsersPageProps) {
             </option>
           ))}
         </select>
+        <input type="hidden" name="sort" value={sort} />
+        <input type="hidden" name="dir" value={dir} />
         <button type="submit" className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white">
           Apply filters
         </button>
@@ -85,11 +100,11 @@ export default async function AdminUsersPage({ searchParams }: UsersPageProps) {
       <DataTable isEmpty={result.rows.length === 0} emptyTitle="No users match these filters">
         <DataTableHead>
           <tr>
-            <th className="px-4 py-3">Name</th>
-            <th className="px-4 py-3">Email</th>
-            <th className="px-4 py-3">Campus</th>
-            <th className="px-4 py-3">Roles</th>
-            <th className="px-4 py-3">Status</th>
+            <SortHeader label="Name" column="name" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Email" column="email" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Campus" column="campus" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Roles" column="roles" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Status" column="status" sort={sort} dir={dir} hrefFor={sortHref} />
           </tr>
         </DataTableHead>
         <DataTableBody>
@@ -102,10 +117,19 @@ export default async function AdminUsersPage({ searchParams }: UsersPageProps) {
               <td className="px-4 py-3">{row.email}</td>
               <td className="px-4 py-3">{row.campus}</td>
               <td className="px-4 py-3">
-                <div className="flex flex-wrap gap-1">
-                  {row.roles.map((label) => (
-                    <StatusBadge key={label} status="ACTIVE" label={label} />
-                  ))}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap gap-1">
+                    {row.roles.map((label) => (
+                      <StatusBadge key={label} status="ACTIVE" label={label} />
+                    ))}
+                  </div>
+                  <UserRolesDialog
+                    userId={row.id}
+                    userName={row.name}
+                    assignments={row.assignments}
+                    locations={staffLocations.locations}
+                    lockSuperAdmin={row.id === result.currentUserId}
+                  />
                 </div>
               </td>
               <td className="px-4 py-3">
@@ -122,9 +146,9 @@ export default async function AdminUsersPage({ searchParams }: UsersPageProps) {
 
       <Pagination
         page={result.page}
-        pageCount={pageCount}
+        pageCount={result.pageCount}
         total={result.total}
-        pageSize={USER_PAGE_SIZE}
+        pageSize={result.pageSize}
         hrefForPage={(page) => withQuery("/admin/users", query, { page: page > 1 ? String(page) : undefined })}
       />
     </>

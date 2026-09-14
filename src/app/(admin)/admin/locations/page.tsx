@@ -5,14 +5,16 @@ import { fieldClassName } from "@/components/ui/form-field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
+import { SortHeader } from "@/components/ui/sort-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { parseListPage } from "@/lib/admin/list-page";
 import { withQuery } from "@/lib/admin/query-string";
-import { listLocations } from "@/lib/services/location.service";
+import { parseSortColumn, parseSortDir } from "@/lib/admin/sort";
+import { listLocations, LOCATION_SORTS } from "@/lib/services/location.service";
 import { LOCATION_STATUSES, type LocationStatus } from "@/types";
 
 type LocationsPageProps = {
-  searchParams: Promise<{ q?: string; status?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; page?: string; sort?: string; dir?: string }>;
 };
 
 export default async function AdminLocationsPage({ searchParams }: LocationsPageProps) {
@@ -20,18 +22,28 @@ export default async function AdminLocationsPage({ searchParams }: LocationsPage
   const status = LOCATION_STATUSES.includes(params.status as LocationStatus)
     ? (params.status as LocationStatus)
     : "";
+  const sort = parseSortColumn(params.sort, LOCATION_SORTS, "name");
+  const dir = parseSortDir(params.dir, "asc");
   const result = await listLocations({
     q: params.q,
     status,
     page: parseListPage(params.page),
+    sort,
+    dir,
   });
-  const query = { q: params.q, status: status || undefined };
+  const query = {
+    q: params.q,
+    status: status || undefined,
+    sort,
+    dir,
+  };
+  const sortHref = (nextSort: string, nextDir: typeof dir) =>
+    withQuery("/admin/locations", query, { sort: nextSort, dir: nextDir, page: undefined });
 
   return (
     <>
       <PageHeader
         title="Locations"
-        description="Church campuses connected to Heartfelt International Ministries."
         actions={
           <Link
             href="/admin/locations/new"
@@ -52,6 +64,8 @@ export default async function AdminLocationsPage({ searchParams }: LocationsPage
             </option>
           ))}
         </select>
+        <input type="hidden" name="sort" value={sort} />
+        <input type="hidden" name="dir" value={dir} />
         <div>
           <button type="submit" className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white">
             Apply filters
@@ -68,13 +82,20 @@ export default async function AdminLocationsPage({ searchParams }: LocationsPage
       <DataTable isEmpty={result.locations.length === 0} emptyTitle="No locations match these filters">
         <DataTableHead>
           <tr>
-            <th className="px-4 py-3">Location</th>
-            <th className="px-4 py-3">Code</th>
-            <th className="px-4 py-3">City</th>
-            <th className="px-4 py-3">Country</th>
-            <th className="px-4 py-3">Members</th>
-            <th className="px-4 py-3">Terminals</th>
-            <th className="px-4 py-3">Status</th>
+            <SortHeader label="Location" column="name" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Code" column="code" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="City" column="city" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Country" column="country" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Members" column="members" sort={sort} dir={dir} hrefFor={sortHref} defaultDir="desc" />
+            <SortHeader
+              label="Terminals"
+              column="terminals"
+              sort={sort}
+              dir={dir}
+              hrefFor={sortHref}
+              defaultDir="desc"
+            />
+            <SortHeader label="Status" column="status" sort={sort} dir={dir} hrefFor={sortHref} />
             <th className="px-4 py-3">Actions</th>
           </tr>
         </DataTableHead>

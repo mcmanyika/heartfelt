@@ -33,9 +33,6 @@ export default async function AdminReportsPage({ searchParams }: ReportsPageProp
     to: range.to,
     locationId: params.location,
   });
-  const scope = report.current.isSuperAdmin
-    ? report.current.accessibleLocations.find((location) => location.id === report.locationId)
-    : report.current.accessibleLocations[0];
   const currencies = report.summary.totals.map((total) => total.currency);
   const givingOverTime = Object.keys(report.summary.byMonth)
     .sort()
@@ -51,7 +48,6 @@ export default async function AdminReportsPage({ searchParams }: ReportsPageProp
     <>
       <PageHeader
         title="Reports"
-        description={`Giving, membership, and terminal activity for ${scope ? `${scope.name} (${scope.code})` : "all locations"}. Amounts stay in their original currency.`}
         actions={
           <Link href={transactionsHref} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-navy">
             Open transactions

@@ -4,12 +4,14 @@ import { fieldClassName } from "@/components/ui/form-field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
+import { SortHeader } from "@/components/ui/sort-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { withQuery } from "@/lib/admin/query-string";
 import { parseListPage } from "@/lib/admin/list-page";
+import { parseSortColumn, parseSortDir } from "@/lib/admin/sort";
 import { requireRole } from "@/lib/auth/require-role";
 import { STAFF_ROLES } from "@/lib/auth/types";
-import { listTerminals } from "@/lib/services/terminal.service";
+import { listTerminals, TERMINAL_SORTS } from "@/lib/services/terminal.service";
 import { formatDateTime, terminalStatusLabel } from "@/lib/utils/format";
 import { TERMINAL_STATUSES } from "@/lib/validators/terminal.schema";
 import type { TerminalStatus } from "@/types";
@@ -20,6 +22,8 @@ type TerminalsPageProps = {
     location?: string;
     status?: string;
     page?: string;
+    sort?: string;
+    dir?: string;
   }>;
 };
 
@@ -29,24 +33,31 @@ export default async function AdminTerminalsPage({ searchParams }: TerminalsPage
   const status = TERMINAL_STATUSES.includes(params.status as TerminalStatus)
     ? (params.status as TerminalStatus)
     : "";
+  const sort = parseSortColumn(params.sort, TERMINAL_SORTS, "code");
+  const dir = parseSortDir(params.dir, "asc");
   const canMutate = current.isSuperAdmin || current.isLocationAdmin;
   const result = await listTerminals({
     q: params.q,
     locationId: current.isSuperAdmin ? params.location : undefined,
     status,
     page: parseListPage(params.page),
+    sort,
+    dir,
   });
   const query = {
     q: params.q,
     location: current.isSuperAdmin ? params.location : undefined,
     status: status || undefined,
+    sort,
+    dir,
   };
+  const sortHref = (nextSort: string, nextDir: typeof dir) =>
+    withQuery("/admin/terminals", query, { sort: nextSort, dir: nextDir, page: undefined });
 
   return (
     <>
       <PageHeader
         title="Payment Terminals"
-        description="Assign and monitor campus kiosks. Simulated payments never leave this system."
         actions={
           canMutate ? (
             <Link
@@ -84,6 +95,8 @@ export default async function AdminTerminalsPage({ searchParams }: TerminalsPage
             </option>
           ))}
         </select>
+        <input type="hidden" name="sort" value={sort} />
+        <input type="hidden" name="dir" value={dir} />
         <div>
           <button type="submit" className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white">
             Apply filters
@@ -100,11 +113,18 @@ export default async function AdminTerminalsPage({ searchParams }: TerminalsPage
       <DataTable isEmpty={result.terminals.length === 0} emptyTitle="No terminals match these filters">
         <DataTableHead>
           <tr>
-            <th className="px-4 py-3">Code</th>
-            <th className="px-4 py-3">Device</th>
-            <th className="px-4 py-3">Location</th>
-            <th className="px-4 py-3">Status</th>
-            <th className="px-4 py-3">Last seen</th>
+            <SortHeader label="Code" column="code" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Device" column="device" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Location" column="location" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Status" column="status" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader
+              label="Last seen"
+              column="last_seen"
+              sort={sort}
+              dir={dir}
+              hrefFor={sortHref}
+              defaultDir="desc"
+            />
             <th className="px-4 py-3">Actions</th>
           </tr>
         </DataTableHead>

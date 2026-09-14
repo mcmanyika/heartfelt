@@ -1,11 +1,14 @@
 import { requireRole } from "@/lib/auth/require-role";
+import type { SortDir } from "@/lib/admin/sort";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/utils/log-server-error";
 import type { Database, Json } from "@/types/database.types";
 
-import { LIST_PAGE_SIZE } from "@/lib/admin/list-page";
+export const AUDIT_PAGE_SIZE = 20;
 
-export const AUDIT_PAGE_SIZE = LIST_PAGE_SIZE;
+export const AUDIT_SORTS = ["when", "actor", "action", "entity", "details"] as const;
+
+export type AuditSort = (typeof AUDIT_SORTS)[number];
 
 export type AuditLogRow = {
   id: string;
@@ -46,21 +49,24 @@ export async function listAuditLogs(query: {
   from?: string;
   to?: string;
   page?: number;
+  sort?: AuditSort;
+  dir?: SortDir;
 } = {}) {
   const { organizationId } = await requireRole("SUPER_ADMIN");
   const supabase = await createClient();
   const page = Math.max(1, query.page ?? 1);
   const from = (page - 1) * AUDIT_PAGE_SIZE;
   const to = from + AUDIT_PAGE_SIZE - 1;
+  const sort = query.sort ?? "when";
+  const ascending = (query.dir ?? "desc") === "asc";
+  const options = { ascending, nullsFirst: false as const };
 
   let request = supabase
     .from("audit_logs")
     .select("id, action, entity_type, entity_id, metadata, ip_address, created_at, user_id, profiles(first_name, last_name)", {
       count: "exact",
     })
-    .eq("organization_id", organizationId)
-    .order("created_at", { ascending: false })
-    .range(from, to);
+    .eq("organization_id", organizationId);
 
   const search = query.q?.trim();
   if (search) {
@@ -77,12 +83,34 @@ export async function listAuditLogs(query: {
     request = request.lte("created_at", `${query.to}T23:59:59.999Z`);
   }
 
-  const { data, error, count } = await request;
-  if (error) {
-    logServerError("audit.list", error);
-    return { rows: [] as AuditLogRow[], total: 0, page, error: "Unable to load the audit log." };
+  if (sort === "actor") {
+    request = request
+      .order("profiles(last_name)" as never, options as never)
+      .order("profiles(first_name)" as never, options as never);
+  } else if (sort === "action") {
+    request = request.order("action", options);
+  } else if (sort === "entity") {
+    request = request.order("entity_type", options).order("entity_id", options);
+  } else if (sort === "details") {
+    request = request.order("ip_address", options);
+  } else {
+    request = request.order("created_at", options);
   }
 
+  const { data, error, count } = await request.range(from, to);
+  if (error) {
+    logServerError("audit.list", error);
+    return {
+      rows: [] as AuditLogRow[],
+      total: 0,
+      page,
+      pageSize: AUDIT_PAGE_SIZE,
+      pageCount: 1,
+      error: "Unable to load the audit log.",
+    };
+  }
+
+  const total = count ?? 0;
   return {
     rows: ((data ?? []) as Array<Record<string, unknown>>).map((row) => {
       const profile = row.profiles as
@@ -103,7 +131,9 @@ export async function listAuditLogs(query: {
         actor_name: name || "System",
       };
     }),
-    total: count ?? 0,
+    total,
     page,
+    pageSize: AUDIT_PAGE_SIZE,
+    pageCount: Math.max(1, Math.ceil(total / AUDIT_PAGE_SIZE)),
   };
 }

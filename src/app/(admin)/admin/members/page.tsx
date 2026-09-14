@@ -5,11 +5,13 @@ import { DataTable, DataTableBody, DataTableHead } from "@/components/ui/data-ta
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
+import { SortHeader } from "@/components/ui/sort-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { withQuery } from "@/lib/admin/query-string";
+import { parseSortColumn, parseSortDir } from "@/lib/admin/sort";
 import { fieldClassName } from "@/components/ui/form-field";
 import { requireRole } from "@/lib/auth/require-role";
-import { listMembers, listStaffLocations } from "@/lib/services/member.service";
+import { listMembers, listStaffLocations, MEMBER_SORTS } from "@/lib/services/member.service";
 import { displayMemberName, formatDate, membershipStatusLabel } from "@/lib/utils/format";
 import { MEMBERSHIP_STATUSES } from "@/lib/validators/member.schema";
 import type { MembershipStatus } from "@/types";
@@ -21,6 +23,7 @@ type MembersPageProps = {
     status?: string;
     page?: string;
     sort?: string;
+    dir?: string;
   }>;
 };
 
@@ -30,10 +33,8 @@ export default async function AdminMembersPage({ searchParams }: MembersPageProp
   const status = MEMBERSHIP_STATUSES.includes(params.status as MembershipStatus)
     ? (params.status as MembershipStatus)
     : "";
-  const sort =
-    params.sort === "membership_number" || params.sort === "name" || params.sort === "date_joined"
-      ? params.sort
-      : "date_joined";
+  const sort = parseSortColumn(params.sort, MEMBER_SORTS, "date_joined");
+  const dir = parseSortDir(params.dir, "desc");
 
   const result = await listMembers({
     q: params.q,
@@ -41,6 +42,7 @@ export default async function AdminMembersPage({ searchParams }: MembersPageProp
     status,
     page: Number(params.page ?? "1") || 1,
     sort,
+    dir,
   });
 
   const query = {
@@ -48,7 +50,10 @@ export default async function AdminMembersPage({ searchParams }: MembersPageProp
     location: current.isSuperAdmin ? params.location : undefined,
     status: status || undefined,
     sort,
+    dir,
   };
+  const sortHref = (nextSort: string, nextDir: typeof dir) =>
+    withQuery("/admin/members", query, { sort: nextSort, dir: nextDir, page: undefined });
 
   const staffLocations = (await listStaffLocations()).locations;
 
@@ -56,7 +61,6 @@ export default async function AdminMembersPage({ searchParams }: MembersPageProp
     <>
       <PageHeader
         title="Members"
-        description="Search and manage membership records for locations you can access."
         actions={
           <Link
             href="/admin/members/new"
@@ -100,11 +104,8 @@ export default async function AdminMembersPage({ searchParams }: MembersPageProp
             </option>
           ))}
         </select>
-        <select name="sort" defaultValue={sort} className={fieldClassName} aria-label="Sort members">
-          <option value="date_joined">Newest joined</option>
-          <option value="membership_number">Membership number</option>
-          <option value="name">Name</option>
-        </select>
+        <input type="hidden" name="sort" value={sort} />
+        <input type="hidden" name="dir" value={dir} />
         <div className="md:col-span-4">
           <button
             type="submit"
@@ -127,13 +128,26 @@ export default async function AdminMembersPage({ searchParams }: MembersPageProp
       >
         <DataTableHead>
           <tr>
-            <th className="px-4 py-3">Membership number</th>
-            <th className="px-4 py-3">Name</th>
-            <th className="px-4 py-3">Location</th>
-            <th className="px-4 py-3">Phone</th>
-            <th className="px-4 py-3">Email</th>
-            <th className="px-4 py-3">Status</th>
-            <th className="px-4 py-3">Date joined</th>
+            <SortHeader
+              label="Membership number"
+              column="membership_number"
+              sort={sort}
+              dir={dir}
+              hrefFor={sortHref}
+            />
+            <SortHeader label="Name" column="name" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Location" column="location" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Phone" column="phone" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Email" column="email" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Status" column="status" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader
+              label="Date joined"
+              column="date_joined"
+              sort={sort}
+              dir={dir}
+              hrefFor={sortHref}
+              defaultDir="desc"
+            />
             <th className="px-4 py-3">Actions</th>
           </tr>
         </DataTableHead>

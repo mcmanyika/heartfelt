@@ -1,5 +1,5 @@
 import { randomBytes } from "crypto";
-import { LIST_PAGE_SIZE, listPageCount, listRange, parseListPage, searchPattern } from "@/lib/admin/list-page";
+import { listPageCount, listRange, parseListPage, searchPattern } from "@/lib/admin/list-page";
 import { getAdminLocationSelection } from "@/lib/auth/admin-location";
 import { requireRole } from "@/lib/auth/require-role";
 import type { CurrentUser } from "@/lib/auth/types";
@@ -14,7 +14,7 @@ import {
 } from "@/lib/validators/giving.schema";
 import type { MvpCurrency, PaymentMethod, TransactionStatus } from "@/types";
 
-export const TRANSACTION_PAGE_SIZE = LIST_PAGE_SIZE;
+export const TRANSACTION_PAGE_SIZE = 20;
 
 export type GivingCategoryRow = {
   id: string;
@@ -45,6 +45,20 @@ export type GivingTransactionListItem = {
   category_name: string;
 };
 
+export const TRANSACTION_SORTS = [
+  "reference",
+  "member",
+  "location",
+  "category",
+  "amount",
+  "currency",
+  "method",
+  "status",
+  "date",
+] as const;
+
+export type TransactionSort = (typeof TRANSACTION_SORTS)[number];
+
 export type GivingListQuery = {
   q?: string;
   locationId?: string;
@@ -58,6 +72,8 @@ export type GivingListQuery = {
   from?: string;
   to?: string;
   page?: number;
+  sort?: TransactionSort;
+  dir?: "asc" | "desc";
 };
 
 function resolveStaffLocation(current: CurrentUser, requested?: string) {
@@ -249,6 +265,41 @@ export async function searchMembersForGiving(query: string, locationId?: string)
   return { members: (data ?? []) as GivingMemberOption[] };
 }
 
+function applyTransactionSort<T extends { order: (...args: never[]) => T }>(
+  request: T,
+  sort: TransactionSort,
+  ascending: boolean,
+) {
+  const options = { ascending, nullsFirst: false as const };
+  if (sort === "reference") {
+    return request.order("transaction_reference" as never, options as never);
+  }
+  if (sort === "member") {
+    return request
+      .order("members(last_name)" as never, options as never)
+      .order("members(first_name)" as never, options as never);
+  }
+  if (sort === "location") {
+    return request.order("locations(name)" as never, options as never);
+  }
+  if (sort === "category") {
+    return request.order("giving_categories(name)" as never, options as never);
+  }
+  if (sort === "amount") {
+    return request.order("amount" as never, options as never);
+  }
+  if (sort === "currency") {
+    return request.order("currency" as never, options as never);
+  }
+  if (sort === "method") {
+    return request.order("payment_method" as never, options as never);
+  }
+  if (sort === "status") {
+    return request.order("status" as never, options as never);
+  }
+  return request.order("created_at" as never, options as never);
+}
+
 function generateReference(locationCode: string) {
   const stamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
   return `HIM-${locationCode}-${stamp}-${randomBytes(2).toString("hex").toUpperCase()}`;
@@ -268,8 +319,7 @@ export async function listTransactions(query: GivingListQuery = {}) {
       "id, amount, currency, payment_method, status, transaction_reference, created_at, member_id, members(first_name, last_name, membership_number), locations(name, code), giving_categories(name)",
       { count: "exact" },
     )
-    .eq("organization_id", current.organizationId)
-    .order("created_at", { ascending: false });
+    .eq("organization_id", current.organizationId);
 
   if (locationId) {
     request = request.eq("location_id", locationId);
@@ -321,6 +371,10 @@ export async function listTransactions(query: GivingListQuery = {}) {
   if (search) {
     request = request.ilike("transaction_reference", `%${search.replace(/,/g, "")}%`);
   }
+
+  const sort = query.sort ?? "date";
+  const ascending = (query.dir ?? "desc") === "asc";
+  request = applyTransactionSort(request, sort, ascending);
 
   const { data, error, count } = await request.range(from, to);
   if (error) {

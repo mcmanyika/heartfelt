@@ -4,10 +4,12 @@ import { fieldClassName } from "@/components/ui/form-field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
+import { SortHeader } from "@/components/ui/sort-header";
 import { withQuery } from "@/lib/admin/query-string";
 import { parseListPage } from "@/lib/admin/list-page";
+import { parseSortColumn, parseSortDir } from "@/lib/admin/sort";
 import { requireRole } from "@/lib/auth/require-role";
-import { canMutateContent, CONTENT_ROLES, listEvents } from "@/lib/services/event.service";
+import { canMutateContent, CONTENT_ROLES, EVENT_SORTS, listEvents } from "@/lib/services/event.service";
 import { formatDateTime } from "@/lib/utils/format";
 import { EVENT_WHEN_FILTERS, type EventWhenFilter } from "@/lib/validators/event.schema";
 
@@ -17,6 +19,8 @@ type EventsPageProps = {
     location?: string;
     when?: string;
     page?: string;
+    sort?: string;
+    dir?: string;
   }>;
 };
 
@@ -26,23 +30,30 @@ export default async function AdminEventsPage({ searchParams }: EventsPageProps)
   const when = EVENT_WHEN_FILTERS.includes(params.when as EventWhenFilter)
     ? (params.when as EventWhenFilter)
     : "upcoming";
+  const sort = parseSortColumn(params.sort, EVENT_SORTS, "starts");
+  const dir = parseSortDir(params.dir, when === "past" ? "desc" : "asc");
   const result = await listEvents({
     q: params.q,
     locationId: current.isSuperAdmin ? params.location : undefined,
     when,
     page: parseListPage(params.page),
+    sort,
+    dir,
   });
   const query = {
     q: params.q,
     location: current.isSuperAdmin ? params.location : undefined,
     when,
+    sort,
+    dir,
   };
+  const sortHref = (nextSort: string, nextDir: typeof dir) =>
+    withQuery("/admin/events", query, { sort: nextSort, dir: nextDir, page: undefined });
 
   return (
     <>
       <PageHeader
         title="Events"
-        description="Publish organization-wide and campus gatherings. Members see org-wide events plus their location."
         actions={
           <Link href="/admin/events/new" className="rounded-lg bg-maroon px-4 py-2 text-sm font-semibold text-white">
             Add event
@@ -72,6 +83,8 @@ export default async function AdminEventsPage({ searchParams }: EventsPageProps)
           <option value="past">Past</option>
           <option value="all">All dates</option>
         </select>
+        <input type="hidden" name="sort" value={sort} />
+        <input type="hidden" name="dir" value={dir} />
         <div>
           <button type="submit" className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white">
             Apply filters
@@ -88,10 +101,17 @@ export default async function AdminEventsPage({ searchParams }: EventsPageProps)
       <DataTable isEmpty={result.events.length === 0} emptyTitle="No events match these filters">
         <DataTableHead>
           <tr>
-            <th className="px-4 py-3">Event</th>
-            <th className="px-4 py-3">Location</th>
-            <th className="px-4 py-3">Starts</th>
-            <th className="px-4 py-3">Registration</th>
+            <SortHeader label="Event" column="title" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Location" column="location" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader
+              label="Starts"
+              column="starts"
+              sort={sort}
+              dir={dir}
+              hrefFor={sortHref}
+              defaultDir={when === "past" ? "desc" : "asc"}
+            />
+            <SortHeader label="Registration" column="registration" sort={sort} dir={dir} hrefFor={sortHref} />
             <th className="px-4 py-3">Actions</th>
           </tr>
         </DataTableHead>

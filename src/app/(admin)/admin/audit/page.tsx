@@ -3,8 +3,10 @@ import { fieldClassName } from "@/components/ui/form-field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
+import { SortHeader } from "@/components/ui/sort-header";
 import { withQuery } from "@/lib/admin/query-string";
-import { AUDIT_PAGE_SIZE, listAuditLogs } from "@/lib/services/audit.service";
+import { parseSortColumn, parseSortDir } from "@/lib/admin/sort";
+import { AUDIT_SORTS, listAuditLogs } from "@/lib/services/audit.service";
 import { auditActionLabel, formatDateTime } from "@/lib/utils/format";
 
 const ENTITY_TYPES = [
@@ -28,6 +30,8 @@ type AuditPageProps = {
     from?: string;
     to?: string;
     page?: string;
+    sort?: string;
+    dir?: string;
   }>;
 };
 
@@ -36,27 +40,31 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
   const entityType = ENTITY_TYPES.includes(params.entity as (typeof ENTITY_TYPES)[number])
     ? params.entity
     : undefined;
+  const sort = parseSortColumn(params.sort, AUDIT_SORTS, "when");
+  const dir = parseSortDir(params.dir, "desc");
   const result = await listAuditLogs({
     q: params.q,
     entityType,
     from: params.from,
     to: params.to,
     page: Number(params.page ?? "1") || 1,
+    sort,
+    dir,
   });
   const query = {
     q: params.q,
     entity: entityType,
     from: params.from,
     to: params.to,
+    sort,
+    dir,
   };
-  const pageCount = Math.max(1, Math.ceil(result.total / AUDIT_PAGE_SIZE));
+  const sortHref = (nextSort: string, nextDir: typeof dir) =>
+    withQuery("/admin/audit", query, { sort: nextSort, dir: nextDir, page: undefined });
 
   return (
     <>
-      <PageHeader
-        title="Audit log"
-        description="Append-only record of staff changes. Super Admin can review activity; nobody can edit or delete these rows from the app."
-      />
+      <PageHeader title="Audit log" />
 
       <form className="mb-5 grid gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm md:grid-cols-5">
         <SearchInput defaultValue={params.q} placeholder="Search action or entity" />
@@ -81,6 +89,8 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
           aria-label="From date"
         />
         <input type="date" name="to" defaultValue={params.to ?? ""} className={fieldClassName} aria-label="To date" />
+        <input type="hidden" name="sort" value={sort} />
+        <input type="hidden" name="dir" value={dir} />
         <button type="submit" className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white">
           Apply filters
         </button>
@@ -95,11 +105,18 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
       <DataTable isEmpty={result.rows.length === 0} emptyTitle="No audit events in this range">
         <DataTableHead>
           <tr>
-            <th className="px-4 py-3">When</th>
-            <th className="px-4 py-3">Actor</th>
-            <th className="px-4 py-3">Action</th>
-            <th className="px-4 py-3">Entity</th>
-            <th className="px-4 py-3">Details</th>
+            <SortHeader
+              label="When"
+              column="when"
+              sort={sort}
+              dir={dir}
+              hrefFor={sortHref}
+              defaultDir="desc"
+            />
+            <SortHeader label="Actor" column="actor" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Action" column="action" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Entity" column="entity" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Details" column="details" sort={sort} dir={dir} hrefFor={sortHref} />
           </tr>
         </DataTableHead>
         <DataTableBody>
@@ -125,9 +142,9 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
 
       <Pagination
         page={result.page}
-        pageCount={pageCount}
+        pageCount={result.pageCount}
         total={result.total}
-        pageSize={AUDIT_PAGE_SIZE}
+        pageSize={result.pageSize}
         hrefForPage={(page) => withQuery("/admin/audit", query, { page: page > 1 ? String(page) : undefined })}
       />
     </>

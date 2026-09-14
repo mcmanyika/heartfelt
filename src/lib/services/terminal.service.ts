@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { listPageCount, listRange, parseListPage, searchPattern } from "@/lib/admin/list-page";
+import type { SortDir } from "@/lib/admin/sort";
 import { getAdminLocationSelection } from "@/lib/auth/admin-location";
 import { requireRole } from "@/lib/auth/require-role";
 import type { CurrentUser } from "@/lib/auth/types";
@@ -9,14 +10,22 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { emptyToNull, firstZodError, userSafeDatabaseError } from "@/lib/utils/forms";
 import { logServerError } from "@/lib/utils/log-server-error";
+import { displayMemberName } from "@/lib/utils/format";
 import {
   TERMINAL_SOFTWARE_VERSION,
+  terminalMemberSearchSchema,
   terminalPaymentSchema,
   terminalSchema,
 } from "@/lib/validators/terminal.schema";
 import type { TerminalStatus } from "@/types";
 
 export const TERMINAL_MUTATE_ROLES = ["SUPER_ADMIN", "LOCATION_ADMIN"] as const;
+
+export const TERMINAL_PAGE_SIZE = 20;
+
+export const TERMINAL_SORTS = ["code", "device", "location", "status", "last_seen"] as const;
+
+export type TerminalSort = (typeof TERMINAL_SORTS)[number];
 
 export type TerminalListItem = {
   id: string;
@@ -43,6 +52,13 @@ export type PublicTerminal = {
   location_name: string;
   location_code: string;
   categories: Array<{ id: string; name: string }>;
+};
+
+export type TerminalMemberMatch = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  membership_number: string;
 };
 
 export type TerminalGivingRow = {
@@ -106,18 +122,22 @@ export async function listTerminals(query: {
   locationId?: string;
   status?: TerminalStatus | "";
   page?: number;
+  sort?: TerminalSort;
+  dir?: SortDir;
 } = {}) {
   const current = await requireRole(STAFF_ROLES);
   const locationId = await resolveListLocation(current, query.locationId);
   const page = parseListPage(String(query.page ?? 1));
-  const { from, to } = listRange(page);
+  const { from, to } = listRange(page, TERMINAL_PAGE_SIZE);
+  const sort = query.sort ?? "code";
+  const ascending = (query.dir ?? "asc") === "asc";
+  const options = { ascending, nullsFirst: false as const };
   const supabase = await createClient();
 
   let request = supabase
     .from("payment_terminals")
     .select(TERMINAL_SELECT, { count: "exact" })
-    .eq("organization_id", current.organizationId)
-    .order("terminal_code");
+    .eq("organization_id", current.organizationId);
 
   if (locationId) {
     request = request.eq("location_id", locationId);
@@ -131,6 +151,18 @@ export async function listTerminals(query: {
     request = request.or(`terminal_code.ilike.${pattern},device_name.ilike.${pattern}`);
   }
 
+  if (sort === "device") {
+    request = request.order("device_name", options);
+  } else if (sort === "location") {
+    request = request.order("locations(name)" as never, options as never);
+  } else if (sort === "status") {
+    request = request.order("status", options);
+  } else if (sort === "last_seen") {
+    request = request.order("last_seen_at", options);
+  } else {
+    request = request.order("terminal_code", options);
+  }
+
   const { data, error, count } = await request.range(from, to);
   if (error) {
     logServerError("terminal.list", error);
@@ -141,7 +173,7 @@ export async function listTerminals(query: {
       page,
       total: 0,
       pageCount: 1,
-      pageSize: to - from + 1,
+      pageSize: TERMINAL_PAGE_SIZE,
     };
   }
 
@@ -151,8 +183,8 @@ export async function listTerminals(query: {
     locationId,
     page,
     total,
-    pageCount: listPageCount(total),
-    pageSize: to - from + 1,
+    pageCount: listPageCount(total, TERMINAL_PAGE_SIZE),
+    pageSize: TERMINAL_PAGE_SIZE,
   };
 }
 
@@ -441,34 +473,121 @@ function generateTerminalReference(locationCode: string) {
   return `HIM-${locationCode}-T-${stamp}-${randomBytes(2).toString("hex").toUpperCase()}`;
 }
 
+type TerminalRow = {
+  id: string;
+  organization_id: string;
+  location_id: string;
+  terminal_code: string;
+  status: TerminalStatus;
+  locations: { code: string } | { code: string }[] | null;
+};
+
+async function getOnlineTerminalByCode(terminalCode: string) {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("payment_terminals")
+    .select("id, organization_id, location_id, terminal_code, status, locations(code)")
+    .eq("terminal_code", terminalCode.trim().toUpperCase())
+    .maybeSingle();
+
+  if (error || !data) {
+    return { error: "This terminal is not available.", terminal: null as TerminalRow | null, supabase };
+  }
+
+  const terminal = data as TerminalRow;
+  if (terminal.status !== "ONLINE") {
+    return { error: "This terminal is not taking payments.", terminal: null, supabase };
+  }
+
+  return { error: null as string | null, terminal, supabase };
+}
+
+function sanitizeMemberSearch(query: string) {
+  return query
+    .trim()
+    .replace(/[%_,()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function memberSearchOrFilter(query: string) {
+  const cleaned = sanitizeMemberSearch(query);
+  if (!cleaned) {
+    return null;
+  }
+
+  const like = (value: string) => `%${value}%`;
+  const filters = [
+    `membership_number.ilike.${like(cleaned)}`,
+    `first_name.ilike.${like(cleaned)}`,
+    `last_name.ilike.${like(cleaned)}`,
+  ];
+  const tokens = cleaned.split(" ");
+  if (tokens.length >= 2) {
+    const first = like(tokens[0]);
+    const last = like(tokens.slice(1).join(" "));
+    filters.push(`and(first_name.ilike.${first},last_name.ilike.${last})`);
+    filters.push(`and(first_name.ilike.${last},last_name.ilike.${first})`);
+  }
+
+  return filters.join(",");
+}
+
+export async function searchTerminalMembers(input: unknown) {
+  const parsed = terminalMemberSearchSchema.safeParse(input);
+  if (!parsed.success) {
+    return { members: [] as TerminalMemberMatch[], error: firstZodError(parsed.error) };
+  }
+
+  const { error, terminal, supabase } = await getOnlineTerminalByCode(parsed.data.terminal_code);
+  if (error || !terminal) {
+    return { members: [] as TerminalMemberMatch[], error: error ?? "This terminal is not available." };
+  }
+
+  const filter = memberSearchOrFilter(parsed.data.q);
+  if (!filter) {
+    return { members: [] as TerminalMemberMatch[] };
+  }
+
+  const { data, error: searchError } = await supabase
+    .from("members")
+    .select("id, first_name, last_name, membership_number, location_id")
+    .eq("organization_id", terminal.organization_id)
+    .or(filter)
+    .order("last_name")
+    .limit(20);
+
+  if (searchError) {
+    logServerError("terminal.members", searchError);
+    return { members: [] as TerminalMemberMatch[], error: "Unable to search members." };
+  }
+
+  const rows = (data ?? []) as Array<TerminalMemberMatch & { location_id: string }>;
+  rows.sort((left, right) => {
+    const leftHere = left.location_id === terminal.location_id ? 0 : 1;
+    const rightHere = right.location_id === terminal.location_id ? 0 : 1;
+    if (leftHere !== rightHere) {
+      return leftHere - rightHere;
+    }
+    return displayMemberName(left).localeCompare(displayMemberName(right));
+  });
+
+  return {
+    members: rows.slice(0, 6).map(({ location_id: _locationId, ...member }) => member),
+  };
+}
+
 export async function simulateTerminalPayment(input: unknown) {
   const parsed = terminalPaymentSchema.safeParse(input);
   if (!parsed.success) {
     return { error: firstZodError(parsed.error) };
   }
 
-  const supabase = createAdminClient();
-  const { data: terminalData, error: terminalError } = await supabase
-    .from("payment_terminals")
-    .select("id, organization_id, location_id, terminal_code, status, locations(code)")
-    .eq("terminal_code", parsed.data.terminal_code.trim().toUpperCase())
-    .maybeSingle();
-
-  if (terminalError || !terminalData) {
-    return { error: "This terminal is not available." };
-  }
-
-  const terminal = terminalData as {
-    id: string;
-    organization_id: string;
-    location_id: string;
-    terminal_code: string;
-    status: TerminalStatus;
-    locations: { code: string } | { code: string }[] | null;
-  };
-
-  if (terminal.status !== "ONLINE") {
-    return { error: "This terminal is not taking payments." };
+  const { error: terminalError, terminal, supabase } = await getOnlineTerminalByCode(
+    parsed.data.terminal_code,
+  );
+  if (terminalError || !terminal) {
+    return { error: terminalError ?? "This terminal is not available." };
   }
 
   const { data: categoryData, error: categoryError } = await supabase
@@ -484,13 +603,36 @@ export async function simulateTerminalPayment(input: unknown) {
 
   const location = Array.isArray(terminal.locations) ? terminal.locations[0] : terminal.locations;
   const reference = generateTerminalReference(location?.code ?? "HIM");
+  let memberId: string | null = emptyToNull(parsed.data.member_id);
+  let payerName = emptyToNull(parsed.data.member_name);
+
+  if (memberId) {
+    const { data: memberData, error: memberError } = await supabase
+      .from("members")
+      .select("id, first_name, last_name, membership_number")
+      .eq("id", memberId)
+      .eq("organization_id", terminal.organization_id)
+      .maybeSingle();
+
+    if (memberError || !memberData) {
+      return { error: "That member could not be found." };
+    }
+
+    const member = memberData as TerminalMemberMatch;
+    memberId = member.id;
+    payerName = displayMemberName(member);
+  }
+
+  const notes = payerName
+    ? `Simulated terminal payment. Payer: ${payerName}`
+    : "Simulated terminal payment";
 
   const { data, error } = await supabase
     .from("giving_transactions")
     .insert({
       organization_id: terminal.organization_id,
       location_id: terminal.location_id,
-      member_id: null,
+      member_id: memberId,
       giving_category_id: parsed.data.giving_category_id,
       amount: Number(parsed.data.amount),
       currency: parsed.data.currency,
@@ -498,7 +640,7 @@ export async function simulateTerminalPayment(input: unknown) {
       transaction_reference: reference,
       status: "SUCCESS",
       terminal_id: terminal.id,
-      notes: "Simulated terminal payment",
+      notes,
       created_by: null,
     } as never)
     .select("id, transaction_reference")
@@ -518,5 +660,6 @@ export async function simulateTerminalPayment(input: unknown) {
   return {
     id: created?.id,
     transaction_reference: created?.transaction_reference ?? reference,
+    member_name: payerName,
   };
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SortHeader } from "@/components/ui/sort-header";
 import { DataTable, DataTableBody, DataTableHead } from "@/components/ui/data-table";
 import { fieldClassName } from "@/components/ui/form-field";
 import { PageHeader } from "@/components/ui/page-header";
@@ -6,9 +7,10 @@ import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { withQuery } from "@/lib/admin/query-string";
+import { parseSortColumn, parseSortDir } from "@/lib/admin/sort";
 import { requireRole } from "@/lib/auth/require-role";
 import { STAFF_ROLES } from "@/lib/auth/types";
-import { listGivingCategories, listTransactions } from "@/lib/services/giving.service";
+import { listGivingCategories, listTransactions, TRANSACTION_SORTS } from "@/lib/services/giving.service";
 import { formatAmount, formatDateTime, paymentMethodLabel } from "@/lib/utils/format";
 import { MANUAL_PAYMENT_METHODS, TRANSACTION_STATUSES } from "@/lib/validators/giving.schema";
 import { MVP_CURRENCIES, type MvpCurrency, type PaymentMethod, type TransactionStatus } from "@/types";
@@ -26,6 +28,8 @@ type TransactionsPageProps = {
     from?: string;
     to?: string;
     page?: string;
+    sort?: string;
+    dir?: string;
   }>;
 };
 
@@ -42,6 +46,8 @@ export default async function AdminTransactionsPage({ searchParams }: Transactio
   const status = TRANSACTION_STATUSES.includes(params.status as TransactionStatus)
     ? (params.status as TransactionStatus)
     : "";
+  const sort = parseSortColumn(params.sort, TRANSACTION_SORTS, "date");
+  const dir = parseSortDir(params.dir, "desc");
 
   const [{ categories }, result] = await Promise.all([
     listGivingCategories(),
@@ -57,6 +63,8 @@ export default async function AdminTransactionsPage({ searchParams }: Transactio
       from: params.from,
       to: params.to,
       page: Number(params.page ?? "1") || 1,
+      sort,
+      dir,
     }),
   ]);
 
@@ -71,13 +79,17 @@ export default async function AdminTransactionsPage({ searchParams }: Transactio
     status: status || undefined,
     from: params.from,
     to: params.to,
+    sort,
+    dir,
   };
+
+  const sortHref = (nextSort: string, nextDir: typeof dir) =>
+    withQuery("/admin/transactions", query, { sort: nextSort, dir: nextDir, page: undefined });
 
   return (
     <>
       <PageHeader
         title="Giving & Transactions"
-        description="Record and review giving for locations you can access. Location is taken from your session, not the form."
         actions={
           <div className="flex flex-wrap gap-3">
             {current.isSuperAdmin ? (
@@ -181,6 +193,8 @@ export default async function AdminTransactionsPage({ searchParams }: Transactio
           aria-label="From date"
         />
         <input type="date" name="to" defaultValue={params.to} className={fieldClassName} aria-label="To date" />
+        <input type="hidden" name="sort" value={sort} />
+        <input type="hidden" name="dir" value={dir} />
         <div className="md:col-span-4">
           <button type="submit" className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white">
             Apply filters
@@ -197,15 +211,28 @@ export default async function AdminTransactionsPage({ searchParams }: Transactio
       <DataTable isEmpty={result.transactions.length === 0} emptyTitle="No transactions match these filters">
         <DataTableHead>
           <tr>
-            <th className="px-4 py-3">Reference</th>
-            <th className="px-4 py-3">Member</th>
-            <th className="px-4 py-3">Location</th>
-            <th className="px-4 py-3">Category</th>
-            <th className="px-4 py-3">Amount</th>
-            <th className="px-4 py-3">Currency</th>
-            <th className="px-4 py-3">Payment method</th>
-            <th className="px-4 py-3">Status</th>
-            <th className="px-4 py-3">Date</th>
+            <SortHeader label="Reference" column="reference" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Member" column="member" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Location" column="location" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Category" column="category" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Amount" column="amount" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader label="Currency" column="currency" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader
+              label="Payment method"
+              column="method"
+              sort={sort}
+              dir={dir}
+              hrefFor={sortHref}
+            />
+            <SortHeader label="Status" column="status" sort={sort} dir={dir} hrefFor={sortHref} />
+            <SortHeader
+              label="Date"
+              column="date"
+              sort={sort}
+              dir={dir}
+              hrefFor={sortHref}
+              defaultDir="desc"
+            />
           </tr>
         </DataTableHead>
         <DataTableBody>

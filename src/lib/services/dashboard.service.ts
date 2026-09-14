@@ -5,8 +5,6 @@ import { STAFF_ROLES } from "@/lib/auth/types";
 import { listScopedTransactions, summarizeGiving } from "@/lib/services/giving.service";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/utils/log-server-error";
-import { TERMINAL_STATUSES } from "@/lib/validators/terminal.schema";
-import type { TerminalStatus } from "@/types";
 
 export type DashboardRange = {
   from: string;
@@ -32,7 +30,6 @@ export function parseDashboardRange(from?: string, to?: string): DashboardRange 
 
 export type DashboardFilters = {
   q?: string;
-  terminalStatus?: string;
 };
 
 export async function getDashboardData(range: DashboardRange, filters: DashboardFilters = {}) {
@@ -41,9 +38,6 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
   const locationId = selection.locationId;
   const supabase = await createClient();
   const pattern = searchPattern(filters.q);
-  const terminalStatus = TERMINAL_STATUSES.includes(filters.terminalStatus as TerminalStatus)
-    ? (filters.terminalStatus as TerminalStatus)
-    : "";
 
   let membersQuery = supabase
     .from("members")
@@ -55,9 +49,8 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
 
   let terminalsQuery = supabase
     .from("payment_terminals")
-    .select("id, terminal_code, device_name, status, last_seen_at, locations(name, code)")
-    .eq("organization_id", current.organizationId)
-    .order("terminal_code");
+    .select("id, status")
+    .eq("organization_id", current.organizationId);
   if (locationId) {
     terminalsQuery = terminalsQuery.eq("location_id", locationId);
   }
@@ -69,24 +62,6 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
     .order("name");
   if (locationId) {
     locationsQuery = locationsQuery.eq("id", locationId);
-  }
-
-  const eventsFilter = locationId
-    ? `location_id.is.null,location_id.eq.${locationId}`
-    : undefined;
-
-  let eventsQuery = supabase
-    .from("events")
-    .select("id, title, start_date, venue, locations(name)")
-    .eq("organization_id", current.organizationId)
-    .gte("start_date", new Date().toISOString())
-    .order("start_date")
-    .limit(LIST_PAGE_SIZE);
-  if (eventsFilter) {
-    eventsQuery = eventsQuery.or(eventsFilter);
-  }
-  if (pattern) {
-    eventsQuery = eventsQuery.or(`title.ilike.${pattern},venue.ilike.${pattern}`);
   }
 
   let recentMembersQuery = supabase
@@ -116,43 +91,21 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
     recentGivingQuery = recentGivingQuery.eq("location_id", locationId);
   }
 
-  let terminalFeedQuery = supabase
-    .from("payment_terminals")
-    .select("id, terminal_code, device_name, status, last_seen_at, locations(name, code)")
-    .eq("organization_id", current.organizationId)
-    .order("terminal_code")
-    .limit(LIST_PAGE_SIZE);
-  if (locationId) {
-    terminalFeedQuery = terminalFeedQuery.eq("location_id", locationId);
-  }
-  if (terminalStatus) {
-    terminalFeedQuery = terminalFeedQuery.eq("status", terminalStatus);
-  }
-  if (pattern) {
-    terminalFeedQuery = terminalFeedQuery.or(
-      `terminal_code.ilike.${pattern},device_name.ilike.${pattern}`,
-    );
-  }
-
-  const [members, terminals, locations, events, recentMembers, recentGiving, terminalFeed, scoped] =
+  const [members, terminals, locations, recentMembers, recentGiving, scoped] =
     await Promise.all([
       membersQuery,
       terminalsQuery,
       locationsQuery,
-      eventsQuery,
       recentMembersQuery,
       recentGivingQuery,
-      terminalFeedQuery,
       listScopedTransactions({ ...range, locationId: locationId ?? "" }),
     ]);
 
   if (members.error) logServerError("dashboard.members", members.error);
   if (terminals.error) logServerError("dashboard.terminals", terminals.error);
   if (locations.error) logServerError("dashboard.locations", locations.error);
-  if (events.error) logServerError("dashboard.events", events.error);
   if (recentMembers.error) logServerError("dashboard.recentMembers", recentMembers.error);
   if (recentGiving.error) logServerError("dashboard.recentGiving", recentGiving.error);
-  if (terminalFeed.error) logServerError("dashboard.terminalFeed", terminalFeed.error);
 
   const summary = summarizeGiving(scoped.rows);
   const activeLocations = ((locations.data ?? []) as Array<{ status: string }>).filter(
@@ -181,24 +134,6 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
     terminalCount: ((terminals.data ?? []) as unknown[]).length,
     summary,
     membersByLocation,
-    terminals: (terminalFeed.data ?? []) as Array<{
-      id: string;
-      terminal_code: string;
-      device_name: string;
-      status: string;
-      last_seen_at: string | null;
-      locations: { name: string; code: string } | { name: string; code: string }[] | null;
-    }>,
-    events: ((events.data ?? []) as Array<Record<string, unknown>>).map((event) => {
-      const location = event.locations as { name: string } | { name: string }[] | null;
-      return {
-        id: String(event.id),
-        title: String(event.title),
-        start_date: String(event.start_date),
-        venue: (event.venue as string | null) ?? null,
-        location_name: Array.isArray(location) ? location[0]?.name ?? null : location?.name ?? null,
-      };
-    }),
     recentMembers: ((recentMembers.data ?? []) as Array<Record<string, unknown>>).map((member) => {
       const location = member.locations as
         | { name: string; code: string }

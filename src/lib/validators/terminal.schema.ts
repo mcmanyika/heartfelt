@@ -34,6 +34,13 @@ export const terminalPaymentSchema = z.object({
     .refine((value) => /^\d+(\.\d{1,2})?$/.test(value) && Number(value) > 0, "Enter a valid amount."),
   currency: z.enum(MVP_CURRENCIES),
   payment_method: z.enum(TERMINAL_PAYMENT_METHODS),
+  member_id: z.string().uuid().optional().or(z.literal("")),
+  member_name: z.string().trim().max(80, "Use a shorter member name.").optional().or(z.literal("")),
+});
+
+export const terminalMemberSearchSchema = z.object({
+  terminal_code: z.string().trim().min(3, "Unknown terminal."),
+  q: z.string().trim().min(2, "Enter at least two characters.").max(80),
 });
 
 export type TerminalInput = z.infer<typeof terminalSchema>;

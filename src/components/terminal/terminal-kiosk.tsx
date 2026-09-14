@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { TerminalMemberField } from "@/components/terminal/terminal-member-field";
+import { TerminalReceipt, type TerminalReceiptData } from "@/components/terminal/terminal-receipt";
 import { TerminalThemeSwitcher } from "@/components/terminal/terminal-theme-switcher";
 import { useTerminalTheme } from "@/components/terminal/use-terminal-theme";
 import { simulateTerminalPaymentAction } from "@/lib/services/terminal.actions";
-import type { PublicTerminal } from "@/lib/services/terminal.service";
-import { formatAmount, paymentMethodLabel, terminalStatusLabel } from "@/lib/utils/format";
+import type { PublicTerminal, TerminalMemberMatch } from "@/lib/services/terminal.service";
+import { displayMemberName, formatAmount, paymentMethodLabel, terminalStatusLabel } from "@/lib/utils/format";
 import { TERMINAL_PAYMENT_METHODS } from "@/lib/validators/terminal.schema";
 import { MVP_CURRENCIES, type MvpCurrency } from "@/types";
 
@@ -22,8 +24,10 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
   const [currency, setCurrency] = useState<MvpCurrency>("USD");
   const [categoryId, setCategoryId] = useState(terminal.categories[0]?.id ?? "");
   const [method, setMethod] = useState<(typeof TERMINAL_PAYMENT_METHODS)[number]>("CASH");
+  const [memberName, setMemberName] = useState("");
+  const [selectedMember, setSelectedMember] = useState<TerminalMemberMatch | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [receipt, setReceipt] = useState<{ reference: string; amount: string } | null>(null);
+  const [receipt, setReceipt] = useState<TerminalReceiptData | null>(null);
   const [isPending, startTransition] = useTransition();
   const canPay = terminal.status === "ONLINE" && terminal.categories.length > 0;
   const displayAmount = amount || "0";
@@ -59,8 +63,24 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
 
   function clearAll() {
     setAmount("");
+    setMemberName("");
+    setSelectedMember(null);
     setError(null);
     setReceipt(null);
+  }
+
+  function handleMemberNameChange(value: string) {
+    setError(null);
+    setMemberName(value);
+    if (selectedMember && displayMemberName(selectedMember) !== value.trim()) {
+      setSelectedMember(null);
+    }
+  }
+
+  function handleSelectMember(member: TerminalMemberMatch) {
+    setSelectedMember(member);
+    setMemberName(displayMemberName(member));
+    setError(null);
   }
 
   function processPayment() {
@@ -73,6 +93,8 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
         amount: Number(amount).toFixed(2),
         currency,
         payment_method: method,
+        member_id: selectedMember?.id ?? "",
+        member_name: memberName.trim(),
       });
       if (result.error || !result.transaction_reference) {
         setError(result.error ?? "Payment could not be simulated.");
@@ -81,42 +103,27 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
       setReceipt({
         reference: result.transaction_reference,
         amount: formatAmount(Number(amount), currency),
+        category: categoryName,
+        method: paymentMethodLabel(method),
+        location: terminal.location_name,
+        terminalCode: terminal.terminal_code,
+        paidAt: new Date().toISOString(),
+        memberName: result.member_name || memberName.trim() || "Guest",
       });
       setAmount("");
+      setMemberName("");
+      setSelectedMember(null);
     });
   }
 
   if (receipt) {
     return (
-      <div className="terminal-shell" data-theme={theme} suppressHydrationWarning>
-        <div className="mx-auto flex min-h-full max-w-lg flex-col px-6 py-10">
-          <div className="flex justify-end">
-            <TerminalThemeSwitcher theme={theme} onChange={setTheme} />
-          </div>
-          <div className="flex flex-1 flex-col items-center justify-center text-center">
-            <p className="kiosk-gold text-sm font-semibold tracking-[0.2em] uppercase">
-              Payment received
-            </p>
-            <p className="mt-4 text-4xl font-semibold">{receipt.amount}</p>
-            <p className="kiosk-muted mt-2">
-              {categoryName} · {paymentMethodLabel(method)}
-            </p>
-            <p className="kiosk-surface mt-6 rounded-xl px-4 py-3 font-mono text-sm">
-              {receipt.reference}
-            </p>
-            <p className="kiosk-faint mt-3 text-sm">
-              This is a simulated gift. No live payment was taken.
-            </p>
-            <button
-              type="button"
-              onClick={clearAll}
-              className="kiosk-brand mt-8 min-h-14 w-full rounded-2xl text-lg font-semibold"
-            >
-              New gift
-            </button>
-          </div>
-        </div>
-      </div>
+      <TerminalReceipt
+        receipt={receipt}
+        theme={theme}
+        onThemeChange={setTheme}
+        onNewGift={clearAll}
+      />
     );
   }
 
@@ -207,6 +214,15 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
             </section>
 
             <section className="space-y-5">
+              <TerminalMemberField
+                terminalCode={terminal.terminal_code}
+                name={memberName}
+                selectedMember={selectedMember}
+                disabled={isPending}
+                onNameChange={handleMemberNameChange}
+                onSelectMember={handleSelectMember}
+              />
+
               <div>
                 <p className="kiosk-faint mb-2 text-sm">Giving category</p>
                 <div className="flex flex-wrap gap-2">
@@ -249,7 +265,7 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
                 </p>
               ) : (
                 <p className="kiosk-faint text-sm">
-                  Anonymous giving. No live card or mobile money is charged.
+                  No live card or mobile money is charged.
                 </p>
               )}
 
