@@ -1,0 +1,522 @@
+import { randomBytes } from "crypto";
+import { listPageCount, listRange, parseListPage, searchPattern } from "@/lib/admin/list-page";
+import { getAdminLocationSelection } from "@/lib/auth/admin-location";
+import { requireRole } from "@/lib/auth/require-role";
+import type { CurrentUser } from "@/lib/auth/types";
+import { STAFF_ROLES } from "@/lib/auth/types";
+import { writeAuditLog } from "@/lib/services/audit.service";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { emptyToNull, firstZodError, userSafeDatabaseError } from "@/lib/utils/forms";
+import { logServerError } from "@/lib/utils/log-server-error";
+import {
+  TERMINAL_SOFTWARE_VERSION,
+  terminalPaymentSchema,
+  terminalSchema,
+} from "@/lib/validators/terminal.schema";
+import type { TerminalStatus } from "@/types";
+
+export const TERMINAL_MUTATE_ROLES = ["SUPER_ADMIN", "LOCATION_ADMIN"] as const;
+
+export type TerminalListItem = {
+  id: string;
+  terminal_code: string;
+  device_name: string;
+  serial_number: string | null;
+  status: TerminalStatus;
+  last_seen_at: string | null;
+  software_version: string | null;
+  location_id: string;
+  location_name: string;
+  location_code: string;
+};
+
+export type TerminalDetail = TerminalListItem & {
+  organization_id: string;
+};
+
+export type PublicTerminal = {
+  id: string;
+  terminal_code: string;
+  device_name: string;
+  status: TerminalStatus;
+  location_name: string;
+  location_code: string;
+  categories: Array<{ id: string; name: string }>;
+};
+
+export type TerminalGivingRow = {
+  id: string;
+  amount: number;
+  currency: string;
+  payment_method: string;
+  status: string;
+  transaction_reference: string;
+  created_at: string;
+  category_name: string;
+};
+
+function resolveStaffLocation(current: CurrentUser, requested?: string) {
+  if (!current.isSuperAdmin) {
+    return current.staffLocationIds[0] ?? current.primaryLocationId ?? null;
+  }
+
+  return requested || null;
+}
+
+async function resolveListLocation(current: CurrentUser, requested?: string) {
+  if (!current.isSuperAdmin) {
+    return resolveStaffLocation(current);
+  }
+
+  if (requested !== undefined) {
+    return requested || null;
+  }
+
+  const selection = await getAdminLocationSelection(current);
+  return selection.locationId;
+}
+
+function mapTerminal(row: Record<string, unknown>): TerminalListItem {
+  const location = row.locations as
+    | { name: string; code: string }
+    | { name: string; code: string }[]
+    | null;
+  const locationRow = Array.isArray(location) ? location[0] : location;
+
+  return {
+    id: String(row.id),
+    terminal_code: String(row.terminal_code),
+    device_name: String(row.device_name),
+    serial_number: (row.serial_number as string | null) ?? null,
+    status: row.status as TerminalStatus,
+    last_seen_at: (row.last_seen_at as string | null) ?? null,
+    software_version: (row.software_version as string | null) ?? null,
+    location_id: String(row.location_id),
+    location_name: locationRow?.name ?? "Unknown",
+    location_code: locationRow?.code ?? "—",
+  };
+}
+
+const TERMINAL_SELECT =
+  "id, organization_id, location_id, terminal_code, device_name, serial_number, status, last_seen_at, software_version, locations(name, code)";
+
+export async function listTerminals(query: {
+  q?: string;
+  locationId?: string;
+  status?: TerminalStatus | "";
+  page?: number;
+} = {}) {
+  const current = await requireRole(STAFF_ROLES);
+  const locationId = await resolveListLocation(current, query.locationId);
+  const page = parseListPage(String(query.page ?? 1));
+  const { from, to } = listRange(page);
+  const supabase = await createClient();
+
+  let request = supabase
+    .from("payment_terminals")
+    .select(TERMINAL_SELECT, { count: "exact" })
+    .eq("organization_id", current.organizationId)
+    .order("terminal_code");
+
+  if (locationId) {
+    request = request.eq("location_id", locationId);
+  }
+  if (query.status) {
+    request = request.eq("status", query.status);
+  }
+
+  const pattern = searchPattern(query.q);
+  if (pattern) {
+    request = request.or(`terminal_code.ilike.${pattern},device_name.ilike.${pattern}`);
+  }
+
+  const { data, error, count } = await request.range(from, to);
+  if (error) {
+    logServerError("terminal.list", error);
+    return {
+      terminals: [] as TerminalListItem[],
+      locationId,
+      error: "Unable to load terminals.",
+      page,
+      total: 0,
+      pageCount: 1,
+      pageSize: to - from + 1,
+    };
+  }
+
+  const total = count ?? 0;
+  return {
+    terminals: ((data ?? []) as Array<Record<string, unknown>>).map(mapTerminal),
+    locationId,
+    page,
+    total,
+    pageCount: listPageCount(total),
+    pageSize: to - from + 1,
+  };
+}
+
+export async function getTerminal(terminalId: string) {
+  const current = await requireRole(STAFF_ROLES);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("payment_terminals")
+    .select(TERMINAL_SELECT)
+    .eq("id", terminalId)
+    .eq("organization_id", current.organizationId)
+    .maybeSingle();
+
+  if (error) {
+    logServerError("terminal.get", error);
+    return { terminal: null as TerminalDetail | null, error: "Unable to load that terminal." };
+  }
+
+  if (!data) {
+    return { terminal: null as TerminalDetail | null };
+  }
+
+  return {
+    terminal: {
+      ...mapTerminal(data as Record<string, unknown>),
+      organization_id: current.organizationId,
+    },
+  };
+}
+
+async function nextTerminalCode(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  organizationId: string,
+  locationCode: string,
+) {
+  const prefix = `HIM-${locationCode}-T`;
+  const { data } = await supabase
+    .from("payment_terminals")
+    .select("terminal_code")
+    .eq("organization_id", organizationId)
+    .ilike("terminal_code", `${prefix}%`);
+
+  let max = 0;
+  for (const row of (data ?? []) as Array<{ terminal_code: string }>) {
+    const match = row.terminal_code.match(/T(\d+)$/);
+    if (match) {
+      max = Math.max(max, Number(match[1]));
+    }
+  }
+
+  return `${prefix}${String(max + 1).padStart(3, "0")}`;
+}
+
+export async function createTerminal(input: unknown) {
+  const current = await requireRole(TERMINAL_MUTATE_ROLES);
+  const parsed = terminalSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: firstZodError(parsed.error) };
+  }
+
+  const locationId = resolveStaffLocation(current, parsed.data.location_id);
+  if (!locationId) {
+    return { error: "Select a location." };
+  }
+
+  if (current.isSuperAdmin) {
+    const allowed = current.accessibleLocations.some((location) => location.id === locationId);
+    if (!allowed) {
+      return { error: "You do not have access to that location." };
+    }
+  } else if (!current.staffLocationIds.includes(locationId)) {
+    return { error: "You can only assign terminals to your campus." };
+  }
+
+  const supabase = await createClient();
+  const { data: locationData, error: locationError } = await supabase
+    .from("locations")
+    .select("id, code")
+    .eq("id", locationId)
+    .eq("organization_id", current.organizationId)
+    .maybeSingle();
+
+  if (locationError || !locationData) {
+    return { error: "That location is not available." };
+  }
+
+  const location = locationData as { id: string; code: string };
+  const terminalCode =
+    parsed.data.terminal_code?.trim().toUpperCase() ||
+    (await nextTerminalCode(supabase, current.organizationId, location.code));
+
+  const { data, error } = await supabase
+    .from("payment_terminals")
+    .insert({
+      organization_id: current.organizationId,
+      location_id: locationId,
+      terminal_code: terminalCode,
+      device_name: parsed.data.device_name,
+      serial_number: emptyToNull(parsed.data.serial_number),
+      status: parsed.data.status,
+      software_version: emptyToNull(parsed.data.software_version) ?? TERMINAL_SOFTWARE_VERSION,
+    } as never)
+    .select("id")
+    .single();
+
+  if (error) {
+    logServerError("terminal.create", error);
+    return { error: userSafeDatabaseError(error.message) };
+  }
+
+  const created = data as { id: string } | null;
+  await writeAuditLog({
+    action: "TERMINAL_CREATED",
+    entityType: "payment_terminal",
+    entityId: created?.id,
+    metadata: { terminal_code: terminalCode },
+  });
+
+  return { id: created?.id };
+}
+
+export async function updateTerminal(terminalId: string, input: unknown) {
+  const current = await requireRole(TERMINAL_MUTATE_ROLES);
+  const parsed = terminalSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: firstZodError(parsed.error) };
+  }
+
+  const existing = await getTerminal(terminalId);
+  if (!existing.terminal) {
+    return { error: "That terminal is not available." };
+  }
+
+  const locationId = current.isSuperAdmin
+    ? parsed.data.location_id || existing.terminal.location_id
+    : existing.terminal.location_id;
+
+  if (current.isSuperAdmin) {
+    const allowed = current.accessibleLocations.some((location) => location.id === locationId);
+    if (!allowed) {
+      return { error: "You do not have access to that location." };
+    }
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("payment_terminals")
+    .update({
+      location_id: locationId,
+      terminal_code: parsed.data.terminal_code?.trim().toUpperCase() || existing.terminal.terminal_code,
+      device_name: parsed.data.device_name,
+      serial_number: emptyToNull(parsed.data.serial_number),
+      status: parsed.data.status,
+      software_version: emptyToNull(parsed.data.software_version) ?? existing.terminal.software_version,
+    } as never)
+    .eq("id", terminalId)
+    .eq("organization_id", current.organizationId);
+
+  if (error) {
+    logServerError("terminal.update", error);
+    return { error: userSafeDatabaseError(error.message) };
+  }
+
+  await writeAuditLog({
+    action: "TERMINAL_UPDATED",
+    entityType: "payment_terminal",
+    entityId: terminalId,
+  });
+
+  return { ok: true as const };
+}
+
+export async function setTerminalStatus(terminalId: string, status: TerminalStatus) {
+  const current = await requireRole(TERMINAL_MUTATE_ROLES);
+  const existing = await getTerminal(terminalId);
+  if (!existing.terminal) {
+    return { error: "That terminal is not available." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("payment_terminals")
+    .update({ status } as never)
+    .eq("id", terminalId)
+    .eq("organization_id", current.organizationId);
+
+  if (error) {
+    logServerError("terminal.status", error);
+    return { error: userSafeDatabaseError(error.message) };
+  }
+
+  await writeAuditLog({
+    action: "TERMINAL_STATUS_CHANGED",
+    entityType: "payment_terminal",
+    entityId: terminalId,
+    metadata: { status },
+  });
+
+  return { ok: true as const };
+}
+
+export async function listTerminalGiving(terminalId: string) {
+  await requireRole(STAFF_ROLES);
+  const existing = await getTerminal(terminalId);
+  if (!existing.terminal) {
+    return { rows: [] as TerminalGivingRow[] };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("giving_transactions")
+    .select("id, amount, currency, payment_method, status, transaction_reference, created_at, giving_categories(name)")
+    .eq("terminal_id", terminalId)
+    .eq("organization_id", existing.terminal.organization_id)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (error) {
+    logServerError("terminal.giving", error);
+    return { rows: [] as TerminalGivingRow[] };
+  }
+
+  return {
+    rows: ((data ?? []) as Array<Record<string, unknown>>).map((row) => {
+      const category = row.giving_categories as { name: string } | { name: string }[] | null;
+      return {
+        id: String(row.id),
+        amount: Number(row.amount),
+        currency: String(row.currency),
+        payment_method: String(row.payment_method),
+        status: String(row.status),
+        transaction_reference: String(row.transaction_reference),
+        created_at: String(row.created_at),
+        category_name: Array.isArray(category) ? category[0]?.name ?? "Giving" : category?.name ?? "Giving",
+      };
+    }),
+  };
+}
+
+export async function getPublicTerminal(terminalCode: string) {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("payment_terminals")
+    .select("id, organization_id, terminal_code, device_name, status, locations(name, code)")
+    .eq("terminal_code", terminalCode.trim().toUpperCase())
+    .maybeSingle();
+
+  if (error) {
+    logServerError("terminal.public", error);
+    return { terminal: null as PublicTerminal | null };
+  }
+
+  if (!data) {
+    return { terminal: null as PublicTerminal | null };
+  }
+
+  const row = data as Record<string, unknown>;
+  const location = row.locations as
+    | { name: string; code: string }
+    | { name: string; code: string }[]
+    | null;
+  const locationRow = Array.isArray(location) ? location[0] : location;
+
+  const { data: categories } = await supabase
+    .from("giving_categories")
+    .select("id, name")
+    .eq("organization_id", String(row.organization_id))
+    .eq("active", true)
+    .order("name");
+
+  return {
+    terminal: {
+      id: String(row.id),
+      terminal_code: String(row.terminal_code),
+      device_name: String(row.device_name),
+      status: row.status as TerminalStatus,
+      location_name: locationRow?.name ?? "Heartfelt",
+      location_code: locationRow?.code ?? "—",
+      categories: (categories ?? []) as Array<{ id: string; name: string }>,
+    },
+  };
+}
+
+function generateTerminalReference(locationCode: string) {
+  const stamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
+  return `HIM-${locationCode}-T-${stamp}-${randomBytes(2).toString("hex").toUpperCase()}`;
+}
+
+export async function simulateTerminalPayment(input: unknown) {
+  const parsed = terminalPaymentSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: firstZodError(parsed.error) };
+  }
+
+  const supabase = createAdminClient();
+  const { data: terminalData, error: terminalError } = await supabase
+    .from("payment_terminals")
+    .select("id, organization_id, location_id, terminal_code, status, locations(code)")
+    .eq("terminal_code", parsed.data.terminal_code.trim().toUpperCase())
+    .maybeSingle();
+
+  if (terminalError || !terminalData) {
+    return { error: "This terminal is not available." };
+  }
+
+  const terminal = terminalData as {
+    id: string;
+    organization_id: string;
+    location_id: string;
+    terminal_code: string;
+    status: TerminalStatus;
+    locations: { code: string } | { code: string }[] | null;
+  };
+
+  if (terminal.status !== "ONLINE") {
+    return { error: "This terminal is not taking payments." };
+  }
+
+  const { data: categoryData, error: categoryError } = await supabase
+    .from("giving_categories")
+    .select("id, active")
+    .eq("id", parsed.data.giving_category_id)
+    .eq("organization_id", terminal.organization_id)
+    .maybeSingle();
+
+  if (categoryError || !categoryData || !(categoryData as { active: boolean }).active) {
+    return { error: "Select an active giving category." };
+  }
+
+  const location = Array.isArray(terminal.locations) ? terminal.locations[0] : terminal.locations;
+  const reference = generateTerminalReference(location?.code ?? "HIM");
+
+  const { data, error } = await supabase
+    .from("giving_transactions")
+    .insert({
+      organization_id: terminal.organization_id,
+      location_id: terminal.location_id,
+      member_id: null,
+      giving_category_id: parsed.data.giving_category_id,
+      amount: Number(parsed.data.amount),
+      currency: parsed.data.currency,
+      payment_method: parsed.data.payment_method,
+      transaction_reference: reference,
+      status: "SUCCESS",
+      terminal_id: terminal.id,
+      notes: "Simulated terminal payment",
+      created_by: null,
+    } as never)
+    .select("id, transaction_reference")
+    .single();
+
+  if (error) {
+    logServerError("terminal.simulate", error);
+    return { error: userSafeDatabaseError(error.message) };
+  }
+
+  await supabase
+    .from("payment_terminals")
+    .update({ last_seen_at: new Date().toISOString() } as never)
+    .eq("id", terminal.id);
+
+  const created = data as { id: string; transaction_reference: string } | null;
+  return {
+    id: created?.id,
+    transaction_reference: created?.transaction_reference ?? reference,
+  };
+}
