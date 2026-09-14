@@ -38,10 +38,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <h1 className="mt-3 text-2xl font-semibold tracking-tight text-navy">
         Sign in
       </h1>
-      <p className="mt-2 text-sm leading-6 text-gray-600">
-        Use your assigned account to access the admin workspace or member
-        portal.
-      </p>
       <LoginForm
         nextPath={nextPath}
         initialMessage={reasonMessage(params.reason, params.error)}

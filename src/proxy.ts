@@ -18,7 +18,7 @@ function withCopiedCookies(from: NextResponse, to: NextResponse) {
  * protected prefixes. This is not authorization. Layouts and server actions
  * still verify role and location.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
