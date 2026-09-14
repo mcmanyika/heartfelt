@@ -5,18 +5,34 @@ import { TerminalMemberField } from "@/components/terminal/terminal-member-field
 import { TerminalReceipt, type TerminalReceiptData } from "@/components/terminal/terminal-receipt";
 import { TerminalThemeSwitcher } from "@/components/terminal/terminal-theme-switcher";
 import { useTerminalTheme } from "@/components/terminal/use-terminal-theme";
-import { simulateTerminalPaymentAction } from "@/lib/services/terminal.actions";
+import { simulateTerminalBatchPaymentAction } from "@/lib/services/terminal.actions";
 import type { PublicTerminal, TerminalMemberMatch } from "@/lib/services/terminal.service";
-import { displayMemberName, formatAmount, paymentMethodLabel, terminalStatusLabel } from "@/lib/utils/format";
+import { displayMemberName, formatAmount, formatTotals, paymentMethodLabel, terminalStatusLabel } from "@/lib/utils/format";
 import { TERMINAL_PAYMENT_METHODS } from "@/lib/validators/terminal.schema";
 import { MVP_CURRENCIES, type MvpCurrency } from "@/types";
 
 const QUICK_AMOUNTS = [10, 20, 50, 100];
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"] as const;
 
+type CartItem = {
+  key: string;
+  amount: string;
+  currency: MvpCurrency;
+  categoryId: string;
+  categoryName: string;
+};
+
 type TerminalKioskProps = {
   terminal: PublicTerminal;
 };
+
+function cartTotals(items: CartItem[]) {
+  const totals = new Map<string, number>();
+  for (const item of items) {
+    totals.set(item.currency, (totals.get(item.currency) ?? 0) + Number(item.amount));
+  }
+  return [...totals.entries()].map(([currency, amount]) => ({ currency, amount }));
+}
 
 export function TerminalKiosk({ terminal }: TerminalKioskProps) {
   const [theme, setTheme] = useTerminalTheme();
@@ -26,6 +42,7 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
   const [method, setMethod] = useState<(typeof TERMINAL_PAYMENT_METHODS)[number]>("CASH");
   const [memberName, setMemberName] = useState("");
   const [selectedMember, setSelectedMember] = useState<TerminalMemberMatch | null>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<TerminalReceiptData | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -35,6 +52,20 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
     () => terminal.categories.find((category) => category.id === categoryId)?.name ?? "Giving",
     [categoryId, terminal.categories],
   );
+  const pendingAmount = Number(amount) > 0;
+  const checkoutItems = pendingAmount
+    ? [
+        ...cart,
+        {
+          key: "current",
+          amount: Number(amount).toFixed(2),
+          currency,
+          categoryId,
+          categoryName,
+        },
+      ]
+    : cart;
+  const checkoutCount = checkoutItems.length;
 
   function pressKey(key: (typeof KEYS)[number]) {
     setError(null);
@@ -65,6 +96,7 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
     setAmount("");
     setMemberName("");
     setSelectedMember(null);
+    setCart([]);
     setError(null);
     setReceipt(null);
   }
@@ -83,27 +115,70 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
     setError(null);
   }
 
+  function addCurrentGift() {
+    if (!amount || Number(amount) <= 0) {
+      setError("Enter an amount to add another gift.");
+      return;
+    }
+    if (!categoryId) {
+      setError("Select a giving category.");
+      return;
+    }
+    setError(null);
+    setCart((current) => [
+      ...current,
+      {
+        key: `${Date.now()}-${current.length}`,
+        amount: Number(amount).toFixed(2),
+        currency,
+        categoryId,
+        categoryName,
+      },
+    ]);
+    setAmount("");
+  }
+
   function processPayment() {
+    if (checkoutCount === 0) {
+      setError("Add at least one gift.");
+      return;
+    }
     setError(null);
     startTransition(async () => {
       await new Promise((resolve) => setTimeout(resolve, 700));
-      const result = await simulateTerminalPaymentAction({
+      const result = await simulateTerminalBatchPaymentAction({
         terminal_code: terminal.terminal_code,
-        giving_category_id: categoryId,
-        amount: Number(amount).toFixed(2),
-        currency,
         payment_method: method,
         member_id: selectedMember?.id ?? "",
         member_name: memberName.trim(),
+        items: checkoutItems.map((item) => ({
+          giving_category_id: item.categoryId,
+          amount: item.amount,
+          currency: item.currency,
+        })),
       });
-      if (result.error || !result.transaction_reference) {
+      if (result.error || result.items.length === 0) {
         setError(result.error ?? "Payment could not be simulated.");
         return;
       }
+
+      const remaining = [...checkoutItems];
       setReceipt({
-        reference: result.transaction_reference,
-        amount: formatAmount(Number(amount), currency),
-        category: categoryName,
+        lines: result.items.map((item) => {
+          const matchIndex = remaining.findIndex(
+            (line) =>
+              line.categoryId === item.giving_category_id &&
+              line.currency === item.currency &&
+              Number(line.amount) === Number(item.amount),
+          );
+          const match = matchIndex >= 0 ? remaining.splice(matchIndex, 1)[0] : null;
+          return {
+            reference: item.transaction_reference,
+            amount: formatAmount(Number(item.amount), item.currency),
+            category: match?.categoryName ?? "Giving",
+          };
+        }),
+        totals: formatTotals(cartTotals(checkoutItems)),
         method: paymentMethodLabel(method),
         location: terminal.location_name,
         terminalCode: terminal.terminal_code,
@@ -113,6 +188,7 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
       setAmount("");
       setMemberName("");
       setSelectedMember(null);
+      setCart([]);
     });
   }
 
@@ -241,6 +317,33 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
                 </div>
               </div>
 
+              {cart.length > 0 ? (
+                <div className="kiosk-surface rounded-2xl p-4">
+                  <p className="kiosk-faint text-sm">Gifts in this checkout</p>
+                  <ul className="mt-3 space-y-2">
+                    {cart.map((item) => (
+                      <li key={item.key} className="flex items-center justify-between gap-3 text-sm">
+                        <span>
+                          {item.categoryName}
+                          <span className="kiosk-faint ml-2 font-mono">
+                            {formatAmount(Number(item.amount), item.currency)}
+                          </span>
+                        </span>
+                        <button
+                          type="button"
+                          className="kiosk-faint text-sm font-semibold underline-offset-2 hover:underline"
+                          disabled={isPending}
+                          onClick={() => setCart((current) => current.filter((row) => row.key !== item.key))}
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-3 font-mono text-sm font-semibold">{formatTotals(cartTotals(checkoutItems))}</p>
+                </div>
+              ) : null}
+
               <div>
                 <p className="kiosk-faint mb-2 text-sm">Payment method</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -271,11 +374,23 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
 
               <button
                 type="button"
-                onClick={processPayment}
+                onClick={addCurrentGift}
                 disabled={isPending || !amount || Number(amount) <= 0}
+                className="kiosk-outline min-h-12 w-full rounded-2xl text-base font-semibold disabled:opacity-50"
+              >
+                Add gift
+              </button>
+              <button
+                type="button"
+                onClick={processPayment}
+                disabled={isPending || checkoutCount === 0}
                 className="kiosk-brand min-h-14 w-full rounded-2xl text-lg font-semibold disabled:opacity-50"
               >
-                {isPending ? "Processing..." : "Process payment"}
+                {isPending
+                  ? "Processing..."
+                  : checkoutCount > 1
+                    ? `Process ${checkoutCount} payments`
+                    : "Process payment"}
               </button>
               <button
                 type="button"

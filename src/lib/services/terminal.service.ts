@@ -14,6 +14,7 @@ import { displayMemberName } from "@/lib/utils/format";
 import {
   TERMINAL_SOFTWARE_VERSION,
   terminalMemberSearchSchema,
+  terminalBatchPaymentSchema,
   terminalPaymentSchema,
   terminalSchema,
 } from "@/lib/validators/terminal.schema";
@@ -583,26 +584,76 @@ export async function simulateTerminalPayment(input: unknown) {
     return { error: firstZodError(parsed.error) };
   }
 
+  const result = await simulateTerminalBatchPayment({
+    terminal_code: parsed.data.terminal_code,
+    payment_method: parsed.data.payment_method,
+    member_id: parsed.data.member_id,
+    member_name: parsed.data.member_name,
+    items: [
+      {
+        giving_category_id: parsed.data.giving_category_id,
+        amount: parsed.data.amount,
+        currency: parsed.data.currency,
+      },
+    ],
+  });
+
+  if (result.error) {
+    return { error: result.error };
+  }
+
+  const first = result.items[0];
+  return {
+    id: first?.id,
+    transaction_reference: first?.transaction_reference,
+    member_name: result.member_name,
+  };
+}
+
+export async function simulateTerminalBatchPayment(input: unknown) {
+  const parsed = terminalBatchPaymentSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      error: firstZodError(parsed.error),
+      items: [] as Array<{
+        id: string;
+        transaction_reference: string;
+        amount: number;
+        currency: string;
+        giving_category_id: string;
+      }>,
+    };
+  }
+
   const { error: terminalError, terminal, supabase } = await getOnlineTerminalByCode(
     parsed.data.terminal_code,
   );
   if (terminalError || !terminal) {
-    return { error: terminalError ?? "This terminal is not available." };
+    return { error: terminalError ?? "This terminal is not available.", items: [] };
   }
 
+  const categoryIds = [...new Set(parsed.data.items.map((item) => item.giving_category_id))];
   const { data: categoryData, error: categoryError } = await supabase
     .from("giving_categories")
     .select("id, active")
-    .eq("id", parsed.data.giving_category_id)
     .eq("organization_id", terminal.organization_id)
-    .maybeSingle();
+    .in("id", categoryIds);
 
-  if (categoryError || !categoryData || !(categoryData as { active: boolean }).active) {
-    return { error: "Select an active giving category." };
+  if (categoryError) {
+    logServerError("terminal.simulate.categories", categoryError);
+    return { error: "Select an active giving category.", items: [] };
+  }
+
+  const activeIds = new Set(
+    ((categoryData ?? []) as Array<{ id: string; active: boolean }>)
+      .filter((row) => row.active)
+      .map((row) => row.id),
+  );
+  if (categoryIds.some((id) => !activeIds.has(id))) {
+    return { error: "Select an active giving category.", items: [] };
   }
 
   const location = Array.isArray(terminal.locations) ? terminal.locations[0] : terminal.locations;
-  const reference = generateTerminalReference(location?.code ?? "HIM");
   let memberId: string | null = emptyToNull(parsed.data.member_id);
   let payerName = emptyToNull(parsed.data.member_name);
 
@@ -615,7 +666,7 @@ export async function simulateTerminalPayment(input: unknown) {
       .maybeSingle();
 
     if (memberError || !memberData) {
-      return { error: "That member could not be found." };
+      return { error: "That member could not be found.", items: [] };
     }
 
     const member = memberData as TerminalMemberMatch;
@@ -627,28 +678,29 @@ export async function simulateTerminalPayment(input: unknown) {
     ? `Simulated terminal payment. Payer: ${payerName}`
     : "Simulated terminal payment";
 
+  const rows = parsed.data.items.map((item) => ({
+    organization_id: terminal.organization_id,
+    location_id: terminal.location_id,
+    member_id: memberId,
+    giving_category_id: item.giving_category_id,
+    amount: Number(item.amount),
+    currency: item.currency,
+    payment_method: parsed.data.payment_method,
+    transaction_reference: generateTerminalReference(location?.code ?? "HIM"),
+    status: "SUCCESS" as const,
+    terminal_id: terminal.id,
+    notes,
+    created_by: null,
+  }));
+
   const { data, error } = await supabase
     .from("giving_transactions")
-    .insert({
-      organization_id: terminal.organization_id,
-      location_id: terminal.location_id,
-      member_id: memberId,
-      giving_category_id: parsed.data.giving_category_id,
-      amount: Number(parsed.data.amount),
-      currency: parsed.data.currency,
-      payment_method: parsed.data.payment_method,
-      transaction_reference: reference,
-      status: "SUCCESS",
-      terminal_id: terminal.id,
-      notes,
-      created_by: null,
-    } as never)
-    .select("id, transaction_reference")
-    .single();
+    .insert(rows as never)
+    .select("id, transaction_reference, amount, currency, giving_category_id");
 
   if (error) {
     logServerError("terminal.simulate", error);
-    return { error: userSafeDatabaseError(error.message) };
+    return { error: userSafeDatabaseError(error.message), items: [] };
   }
 
   await supabase
@@ -656,10 +708,14 @@ export async function simulateTerminalPayment(input: unknown) {
     .update({ last_seen_at: new Date().toISOString() } as never)
     .eq("id", terminal.id);
 
-  const created = data as { id: string; transaction_reference: string } | null;
   return {
-    id: created?.id,
-    transaction_reference: created?.transaction_reference ?? reference,
+    items: ((data ?? []) as Array<{
+      id: string;
+      transaction_reference: string;
+      amount: number;
+      currency: string;
+      giving_category_id: string;
+    }>),
     member_name: payerName,
   };
 }

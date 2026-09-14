@@ -6,7 +6,7 @@ import {
   createTerminal,
   searchTerminalMembers,
   setTerminalStatus,
-  simulateTerminalPayment,
+  simulateTerminalBatchPayment,
   updateTerminal,
 } from "@/lib/services/terminal.service";
 import type { TerminalStatus } from "@/types";
@@ -50,8 +50,8 @@ export async function searchTerminalMembersAction(input: unknown) {
   return searchTerminalMembers(input);
 }
 
-export async function simulateTerminalPaymentAction(input: unknown) {
-  const result = await simulateTerminalPayment(input);
+export async function simulateTerminalBatchPaymentAction(input: unknown) {
+  const result = await simulateTerminalBatchPayment(input);
   if (!result.error) {
     revalidatePath("/admin/transactions");
     revalidatePath("/admin/terminals");

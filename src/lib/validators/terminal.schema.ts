@@ -25,17 +25,36 @@ export const terminalSchema = z.object({
   software_version: z.string().trim().max(40).optional().or(z.literal("")),
 });
 
+const terminalAmount = z
+  .string()
+  .trim()
+  .refine((value) => /^\d+(\.\d{1,2})?$/.test(value) && Number(value) > 0, "Enter a valid amount.");
+
+export const terminalPaymentItemSchema = z.object({
+  giving_category_id: z.string().uuid("Select a giving category."),
+  amount: terminalAmount,
+  currency: z.enum(MVP_CURRENCIES),
+});
+
 export const terminalPaymentSchema = z.object({
   terminal_code: z.string().trim().min(3, "Unknown terminal."),
   giving_category_id: z.string().uuid("Select a giving category."),
-  amount: z
-    .string()
-    .trim()
-    .refine((value) => /^\d+(\.\d{1,2})?$/.test(value) && Number(value) > 0, "Enter a valid amount."),
+  amount: terminalAmount,
   currency: z.enum(MVP_CURRENCIES),
   payment_method: z.enum(TERMINAL_PAYMENT_METHODS),
   member_id: z.string().uuid().optional().or(z.literal("")),
   member_name: z.string().trim().max(80, "Use a shorter member name.").optional().or(z.literal("")),
+});
+
+export const terminalBatchPaymentSchema = z.object({
+  terminal_code: z.string().trim().min(3, "Unknown terminal."),
+  payment_method: z.enum(TERMINAL_PAYMENT_METHODS),
+  member_id: z.string().uuid().optional().or(z.literal("")),
+  member_name: z.string().trim().max(80, "Use a shorter member name.").optional().or(z.literal("")),
+  items: z
+    .array(terminalPaymentItemSchema)
+    .min(1, "Add at least one gift.")
+    .max(20, "This checkout can take up to 20 gifts."),
 });
 
 export const terminalMemberSearchSchema = z.object({
@@ -45,3 +64,4 @@ export const terminalMemberSearchSchema = z.object({
 
 export type TerminalInput = z.infer<typeof terminalSchema>;
 export type TerminalPaymentInput = z.infer<typeof terminalPaymentSchema>;
+export type TerminalBatchPaymentInput = z.infer<typeof terminalBatchPaymentSchema>;

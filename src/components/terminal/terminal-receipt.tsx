@@ -4,10 +4,15 @@ import { useEffect } from "react";
 import { TerminalThemeSwitcher } from "@/components/terminal/terminal-theme-switcher";
 import type { TerminalTheme } from "@/lib/terminal-theme";
 
-export type TerminalReceiptData = {
+export type TerminalReceiptLine = {
   reference: string;
   amount: string;
   category: string;
+};
+
+export type TerminalReceiptData = {
+  lines: TerminalReceiptLine[];
+  totals: string;
   method: string;
   location: string;
   terminalCode: string;
@@ -44,13 +49,15 @@ export function TerminalReceipt({
   onThemeChange,
   onNewGift,
 }: TerminalReceiptProps) {
+  const giftCount = receipt.lines.length;
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       window.print();
     }, 350);
 
     return () => window.clearTimeout(timer);
-  }, [receipt.reference]);
+  }, [receipt.lines]);
 
   return (
     <div className="terminal-shell" data-theme={theme} suppressHydrationWarning>
@@ -61,7 +68,7 @@ export function TerminalReceipt({
 
         <div className="flex flex-1 flex-col items-center justify-center">
           <p className="terminal-print-hide kiosk-gold text-sm font-semibold tracking-[0.2em] uppercase">
-            Payment received
+            {giftCount > 1 ? "Payments received" : "Payment received"}
           </p>
 
           <article className="terminal-receipt-slip mt-6 w-full max-w-sm rounded-2xl px-6 py-7">
@@ -69,19 +76,39 @@ export function TerminalReceipt({
               Heartfelt International Ministries
             </p>
             <h2 className="mt-2 text-center text-lg font-semibold">{receipt.location}</h2>
-            <p className="mt-1 text-center text-xs opacity-80">Giving receipt</p>
+            <p className="mt-1 text-center text-xs opacity-80">
+              {giftCount > 1 ? `Giving receipt · ${giftCount} gifts` : "Giving receipt"}
+            </p>
 
             <p className="mt-6 text-center font-mono text-3xl font-semibold tracking-tight">
-              {receipt.amount}
+              {receipt.totals}
             </p>
+
+            {giftCount > 1 ? (
+              <ul className="mt-6 space-y-3 text-sm">
+                {receipt.lines.map((line) => (
+                  <li key={line.reference} className="border-t border-current/20 pt-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <span className="opacity-70">{line.category}</span>
+                      <span className="font-medium">{line.amount}</span>
+                    </div>
+                    <p className="mt-1 break-all text-right font-mono text-xs opacity-70">{line.reference}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
 
             <dl className="mt-6 space-y-3 text-sm">
               <ReceiptRow label="Member" value={receipt.memberName} />
-              <ReceiptRow label="Category" value={receipt.category} />
+              {giftCount === 1 ? (
+                <>
+                  <ReceiptRow label="Category" value={receipt.lines[0]?.category ?? "Giving"} />
+                  <ReceiptRow label="Reference" value={receipt.lines[0]?.reference ?? "—"} mono />
+                </>
+              ) : null}
               <ReceiptRow label="Payment method" value={receipt.method} />
               <ReceiptRow label="Date" value={formatReceiptDate(receipt.paidAt)} />
               <ReceiptRow label="Terminal" value={receipt.terminalCode} />
-              <ReceiptRow label="Reference" value={receipt.reference} mono />
             </dl>
 
             <p className="mt-6 text-center text-xs leading-5 opacity-80">
