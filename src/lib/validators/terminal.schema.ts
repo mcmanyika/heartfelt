@@ -162,3 +162,37 @@ export function terminalPaymentDisplay(method: string, channel?: string | null) 
   }
   return method.replace(/_/g, " ");
 }
+
+export type ParsedTerminalPaymentNotes = {
+  channel: string | null;
+  receiptCode: string | null;
+  payer: string | null;
+  note: string | null;
+  simulated: boolean;
+};
+
+export function parseTerminalPaymentNotes(notes: string | null | undefined): ParsedTerminalPaymentNotes {
+  const raw = (notes ?? "").trim();
+  if (!raw) {
+    return { channel: null, receiptCode: null, payer: null, note: null, simulated: false };
+  }
+
+  const channel = raw.match(/(?:^|\.\s*)Channel:\s*([^.]+)/)?.[1]?.trim() || null;
+  const receiptCode = raw.match(/(?:^|\.\s*)Receipt code:\s*([^.]+)/)?.[1]?.trim() || null;
+  const payer = raw.match(/Payer:\s*([^.]+)/)?.[1]?.trim() || null;
+  const leftover = raw
+    .replace(/Simulated terminal payment\.?\s*/i, "")
+    .replace(/Payer:\s*[^.]+(?:\.|$)\s*/i, "")
+    .replace(/(?:^|\.\s*)Channel:\s*[^.]+/g, "")
+    .replace(/(?:^|\.\s*)Receipt code:\s*[^.]+/g, "")
+    .replace(/^[.\s]+|[.\s]+$/g, "")
+    .trim();
+
+  return {
+    channel,
+    receiptCode,
+    payer,
+    note: leftover || null,
+    simulated: /simulated terminal payment/i.test(raw),
+  };
+}

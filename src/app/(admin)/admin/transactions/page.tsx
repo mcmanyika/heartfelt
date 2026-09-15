@@ -1,17 +1,17 @@
 import Link from "next/link";
+import { TransactionsTable } from "@/components/admin/transactions-table";
 import { SortHeader } from "@/components/ui/sort-header";
-import { DataTable, DataTableBody, DataTableHead } from "@/components/ui/data-table";
+import { DataTableHead } from "@/components/ui/data-table";
 import { fieldClassName } from "@/components/ui/form-field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { withQuery } from "@/lib/admin/query-string";
 import { parseSortColumn, parseSortDir } from "@/lib/admin/sort";
 import { requireRole } from "@/lib/auth/require-role";
 import { STAFF_ROLES } from "@/lib/auth/types";
 import { listGivingCategories, listTransactions, TRANSACTION_SORTS } from "@/lib/services/giving.service";
-import { formatAmount, formatDateTime, paymentMethodLabel } from "@/lib/utils/format";
+import { paymentMethodLabel } from "@/lib/utils/format";
 import { MANUAL_PAYMENT_METHODS, TRANSACTION_STATUSES } from "@/lib/validators/giving.schema";
 import { MVP_CURRENCIES, type MvpCurrency, type PaymentMethod, type TransactionStatus } from "@/types";
 
@@ -208,7 +208,7 @@ export default async function AdminTransactionsPage({ searchParams }: Transactio
         </p>
       ) : null}
 
-      <DataTable isEmpty={result.transactions.length === 0} emptyTitle="No transactions match these filters">
+      <TransactionsTable transactions={result.transactions}>
         <DataTableHead>
           <tr>
             <SortHeader label="Reference" column="reference" sort={sort} dir={dir} hrefFor={sortHref} />
@@ -235,26 +235,7 @@ export default async function AdminTransactionsPage({ searchParams }: Transactio
             />
           </tr>
         </DataTableHead>
-        <DataTableBody>
-          {result.transactions.map((row) => (
-            <tr key={row.id} className="text-navy">
-              <td className="px-4 py-3 font-medium">{row.transaction_reference}</td>
-              <td className="px-4 py-3">{row.member_name}</td>
-              <td className="px-4 py-3">
-                {row.location_name} ({row.location_code})
-              </td>
-              <td className="px-4 py-3">{row.category_name}</td>
-              <td className="px-4 py-3">{formatAmount(row.amount, row.currency)}</td>
-              <td className="px-4 py-3">{row.currency}</td>
-              <td className="px-4 py-3">{paymentMethodLabel(row.payment_method)}</td>
-              <td className="px-4 py-3">
-                <StatusBadge status={row.status} />
-              </td>
-              <td className="px-4 py-3">{formatDateTime(row.created_at)}</td>
-            </tr>
-          ))}
-        </DataTableBody>
-      </DataTable>
+      </TransactionsTable>
 
       <Pagination
         page={result.page}

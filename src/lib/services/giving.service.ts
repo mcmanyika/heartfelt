@@ -12,6 +12,7 @@ import {
   givingCategorySchema,
   givingTransactionSchema,
 } from "@/lib/validators/giving.schema";
+import { parseTerminalPaymentNotes } from "@/lib/validators/terminal.schema";
 import type { MvpCurrency, PaymentMethod, TransactionStatus } from "@/types";
 
 export const TRANSACTION_PAGE_SIZE = 20;
@@ -40,9 +41,16 @@ export type GivingTransactionListItem = {
   transaction_reference: string;
   created_at: string;
   member_name: string;
+  membership_number: string | null;
   location_name: string;
   location_code: string;
   category_name: string;
+  card_channel: string | null;
+  receipt_code: string | null;
+  gift_note: string | null;
+  simulated: boolean;
+  terminal_code: string | null;
+  terminal_name: string | null;
 };
 
 export const TRANSACTION_SORTS = [
@@ -316,7 +324,7 @@ export async function listTransactions(query: GivingListQuery = {}) {
   let request = supabase
     .from("giving_transactions")
     .select(
-      "id, amount, currency, payment_method, status, transaction_reference, created_at, member_id, members(first_name, last_name, membership_number), locations(name, code), giving_categories(name)",
+      "id, amount, currency, payment_method, status, transaction_reference, created_at, notes, member_id, members(first_name, last_name, membership_number), locations(name, code), giving_categories(name), payment_terminals(terminal_code, device_name)",
       { count: "exact" },
     )
     .eq("organization_id", current.organizationId);
@@ -400,13 +408,19 @@ export async function listTransactions(query: GivingListQuery = {}) {
       | { name: string; code: string }[]
       | null;
     const category = row.giving_categories as { name: string } | { name: string }[] | null;
+    const terminal = row.payment_terminals as
+      | { terminal_code: string; device_name: string }
+      | { terminal_code: string; device_name: string }[]
+      | null;
     const memberRow = Array.isArray(member) ? member[0] : member;
     const locationRow = Array.isArray(location) ? location[0] : location;
     const categoryRow = Array.isArray(category) ? category[0] : category;
+    const terminalRow = Array.isArray(terminal) ? terminal[0] : terminal;
+    const parsedNotes = parseTerminalPaymentNotes(typeof row.notes === "string" ? row.notes : null);
     const memberName = memberRow
       ? [memberRow.first_name, memberRow.last_name].filter(Boolean).join(" ").trim() ||
         memberRow.membership_number
-      : "Anonymous";
+      : parsedNotes.payer || "Anonymous";
 
     return {
       id: String(row.id),
@@ -417,9 +431,16 @@ export async function listTransactions(query: GivingListQuery = {}) {
       transaction_reference: String(row.transaction_reference),
       created_at: String(row.created_at),
       member_name: memberName,
+      membership_number: memberRow?.membership_number ?? null,
       location_name: locationRow?.name ?? "Unknown",
       location_code: locationRow?.code ?? "—",
       category_name: categoryRow?.name ?? "Giving",
+      card_channel: parsedNotes.channel,
+      receipt_code: parsedNotes.receiptCode,
+      gift_note: parsedNotes.note,
+      simulated: parsedNotes.simulated,
+      terminal_code: terminalRow?.terminal_code ?? null,
+      terminal_name: terminalRow?.device_name ?? null,
     };
   });
 
