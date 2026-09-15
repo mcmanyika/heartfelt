@@ -3,7 +3,19 @@ import { MVP_CURRENCIES } from "@/types";
 
 export const TERMINAL_STATUSES = ["ONLINE", "OFFLINE", "MAINTENANCE", "DISABLED"] as const;
 
-export const TERMINAL_PAYMENT_METHODS = ["CASH", "ECOCASH", "ONEMONEY", "CARD"] as const;
+export const TERMINAL_PAYMENT_METHODS = ["CASH", "CARD"] as const;
+
+export const TERMINAL_CARD_CHANNELS = [
+  "CBZ",
+  "NBS",
+  "ECOBANK",
+  "ECOCASH",
+  "ONEMONEY",
+  "INNBUCKS",
+] as const;
+
+export type TerminalPaymentMethod = (typeof TERMINAL_PAYMENT_METHODS)[number];
+export type TerminalCardChannel = (typeof TERMINAL_CARD_CHANNELS)[number];
 
 export const TERMINAL_SOFTWARE_VERSION = "0.1.0-mvp";
 
@@ -34,28 +46,62 @@ export const terminalPaymentItemSchema = z.object({
   giving_category_id: z.string().uuid("Select a giving category."),
   amount: terminalAmount,
   currency: z.enum(MVP_CURRENCIES),
+  notes: z.string().trim().max(400, "Use a shorter note.").optional().or(z.literal("")),
 });
 
-export const terminalPaymentSchema = z.object({
-  terminal_code: z.string().trim().min(3, "Unknown terminal."),
-  giving_category_id: z.string().uuid("Select a giving category."),
-  amount: terminalAmount,
-  currency: z.enum(MVP_CURRENCIES),
-  payment_method: z.enum(TERMINAL_PAYMENT_METHODS),
-  member_id: z.string().uuid().optional().or(z.literal("")),
-  member_name: z.string().trim().max(80, "Use a shorter member name.").optional().or(z.literal("")),
-});
+function withCardChannelRules<T extends z.ZodType>(schema: T) {
+  return schema.superRefine((value, ctx) => {
+    const data = value as {
+      payment_method: TerminalPaymentMethod;
+      card_channel?: TerminalCardChannel;
+      receipt_code?: string;
+    };
+    if (data.payment_method === "CARD" && !data.card_channel) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["card_channel"],
+        message: "Choose a card option.",
+      });
+    }
+    if (data.card_channel === "CBZ" && !data.receipt_code?.trim()) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["receipt_code"],
+        message: "Enter the code from the CBZ receipt.",
+      });
+    }
+  });
+}
 
-export const terminalBatchPaymentSchema = z.object({
-  terminal_code: z.string().trim().min(3, "Unknown terminal."),
-  payment_method: z.enum(TERMINAL_PAYMENT_METHODS),
-  member_id: z.string().uuid().optional().or(z.literal("")),
-  member_name: z.string().trim().max(80, "Use a shorter member name.").optional().or(z.literal("")),
-  items: z
-    .array(terminalPaymentItemSchema)
-    .min(1, "Add at least one gift.")
-    .max(20, "This checkout can take up to 20 gifts."),
-});
+export const terminalPaymentSchema = withCardChannelRules(
+  z.object({
+    terminal_code: z.string().trim().min(3, "Unknown terminal."),
+    giving_category_id: z.string().uuid("Select a giving category."),
+    amount: terminalAmount,
+    currency: z.enum(MVP_CURRENCIES),
+    payment_method: z.enum(TERMINAL_PAYMENT_METHODS),
+    card_channel: z.enum(TERMINAL_CARD_CHANNELS).optional(),
+    receipt_code: z.string().trim().max(24).optional().or(z.literal("")),
+    member_id: z.string().uuid().optional().or(z.literal("")),
+    member_name: z.string().trim().max(80, "Use a shorter member name.").optional().or(z.literal("")),
+    notes: z.string().trim().max(400, "Use a shorter note.").optional().or(z.literal("")),
+  }),
+);
+
+export const terminalBatchPaymentSchema = withCardChannelRules(
+  z.object({
+    terminal_code: z.string().trim().min(3, "Unknown terminal."),
+    payment_method: z.enum(TERMINAL_PAYMENT_METHODS),
+    card_channel: z.enum(TERMINAL_CARD_CHANNELS).optional(),
+    receipt_code: z.string().trim().max(24).optional().or(z.literal("")),
+    member_id: z.string().uuid().optional().or(z.literal("")),
+    member_name: z.string().trim().max(80, "Use a shorter member name.").optional().or(z.literal("")),
+    items: z
+      .array(terminalPaymentItemSchema)
+      .min(1, "Add at least one gift.")
+      .max(20, "This checkout can take up to 20 gifts."),
+  }),
+);
 
 export const terminalMemberSearchSchema = z.object({
   terminal_code: z.string().trim().min(3, "Unknown terminal."),
@@ -65,3 +111,54 @@ export const terminalMemberSearchSchema = z.object({
 export type TerminalInput = z.infer<typeof terminalSchema>;
 export type TerminalPaymentInput = z.infer<typeof terminalPaymentSchema>;
 export type TerminalBatchPaymentInput = z.infer<typeof terminalBatchPaymentSchema>;
+
+export function isOtherGivingCategory(name: string | null | undefined) {
+  return (name ?? "").trim().toLowerCase() === "other";
+}
+
+export function terminalCardChannelLabel(channel: string) {
+  switch (channel) {
+    case "ECOBANK":
+      return "Ecobank";
+    case "ECOCASH":
+      return "EcoCash";
+    case "ONEMONEY":
+      return "OneMoney";
+    case "INNBUCKS":
+      return "InnBucks";
+    default:
+      return channel;
+  }
+}
+
+export function storedTerminalPaymentMethod(
+  method: TerminalPaymentMethod,
+  channel?: string | null,
+): "CASH" | "ECOCASH" | "ONEMONEY" | "CARD" | "BANK_TRANSFER" {
+  if (method === "CASH") {
+    return "CASH";
+  }
+  if (channel === "ECOCASH") {
+    return "ECOCASH";
+  }
+  if (channel === "ONEMONEY") {
+    return "ONEMONEY";
+  }
+  if (channel === "INNBUCKS") {
+    return "BANK_TRANSFER";
+  }
+  return "CARD";
+}
+
+export function terminalPaymentDisplay(method: string, channel?: string | null) {
+  if (channel) {
+    return terminalCardChannelLabel(channel);
+  }
+  if (method === "CASH") {
+    return "Cash";
+  }
+  if (method === "CARD") {
+    return "Card";
+  }
+  return method.replace(/_/g, " ");
+}

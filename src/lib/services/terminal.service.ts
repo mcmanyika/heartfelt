@@ -13,6 +13,9 @@ import { logServerError } from "@/lib/utils/log-server-error";
 import { displayMemberName } from "@/lib/utils/format";
 import {
   TERMINAL_SOFTWARE_VERSION,
+  isOtherGivingCategory,
+  storedTerminalPaymentMethod,
+  terminalCardChannelLabel,
   terminalMemberSearchSchema,
   terminalBatchPaymentSchema,
   terminalPaymentSchema,
@@ -587,6 +590,8 @@ export async function simulateTerminalPayment(input: unknown) {
   const result = await simulateTerminalBatchPayment({
     terminal_code: parsed.data.terminal_code,
     payment_method: parsed.data.payment_method,
+    card_channel: parsed.data.card_channel,
+    receipt_code: parsed.data.receipt_code,
     member_id: parsed.data.member_id,
     member_name: parsed.data.member_name,
     items: [
@@ -594,6 +599,7 @@ export async function simulateTerminalPayment(input: unknown) {
         giving_category_id: parsed.data.giving_category_id,
         amount: parsed.data.amount,
         currency: parsed.data.currency,
+        notes: parsed.data.notes,
       },
     ],
   });
@@ -635,7 +641,7 @@ export async function simulateTerminalBatchPayment(input: unknown) {
   const categoryIds = [...new Set(parsed.data.items.map((item) => item.giving_category_id))];
   const { data: categoryData, error: categoryError } = await supabase
     .from("giving_categories")
-    .select("id, active")
+    .select("id, name, active")
     .eq("organization_id", terminal.organization_id)
     .in("id", categoryIds);
 
@@ -644,13 +650,19 @@ export async function simulateTerminalBatchPayment(input: unknown) {
     return { error: "Select an active giving category.", items: [] };
   }
 
-  const activeIds = new Set(
-    ((categoryData ?? []) as Array<{ id: string; active: boolean }>)
-      .filter((row) => row.active)
-      .map((row) => row.id),
-  );
-  if (categoryIds.some((id) => !activeIds.has(id))) {
+  const categories = (categoryData ?? []) as Array<{ id: string; name: string; active: boolean }>;
+  const activeById = new Map(categories.filter((row) => row.active).map((row) => [row.id, row]));
+  if (categoryIds.some((id) => !activeById.has(id))) {
     return { error: "Select an active giving category.", items: [] };
+  }
+
+  if (
+    parsed.data.items.some((item) => {
+      const category = activeById.get(item.giving_category_id);
+      return isOtherGivingCategory(category?.name) && !item.notes?.trim();
+    })
+  ) {
+    return { error: "Add a note for Other.", items: [] };
   }
 
   const location = Array.isArray(terminal.locations) ? terminal.locations[0] : terminal.locations;
@@ -674,24 +686,40 @@ export async function simulateTerminalBatchPayment(input: unknown) {
     payerName = displayMemberName(member);
   }
 
-  const notes = payerName
-    ? `Simulated terminal payment. Payer: ${payerName}`
-    : "Simulated terminal payment";
+  const storedMethod = storedTerminalPaymentMethod(
+    parsed.data.payment_method,
+    parsed.data.card_channel,
+  );
+  const channelNote = parsed.data.card_channel
+    ? `Channel: ${terminalCardChannelLabel(parsed.data.card_channel)}`
+    : null;
+  const receiptNote = emptyToNull(parsed.data.receipt_code)
+    ? `Receipt code: ${parsed.data.receipt_code?.trim()}`
+    : null;
 
-  const rows = parsed.data.items.map((item) => ({
-    organization_id: terminal.organization_id,
-    location_id: terminal.location_id,
-    member_id: memberId,
-    giving_category_id: item.giving_category_id,
-    amount: Number(item.amount),
-    currency: item.currency,
-    payment_method: parsed.data.payment_method,
-    transaction_reference: generateTerminalReference(location?.code ?? "HIM"),
-    status: "SUCCESS" as const,
-    terminal_id: terminal.id,
-    notes,
-    created_by: null,
-  }));
+  const rows = parsed.data.items.map((item) => {
+    const extra = emptyToNull(item.notes);
+    const parts = [
+      payerName ? `Simulated terminal payment. Payer: ${payerName}` : "Simulated terminal payment",
+      channelNote,
+      receiptNote,
+      extra,
+    ].filter(Boolean);
+    return {
+      organization_id: terminal.organization_id,
+      location_id: terminal.location_id,
+      member_id: memberId,
+      giving_category_id: item.giving_category_id,
+      amount: Number(item.amount),
+      currency: item.currency,
+      payment_method: storedMethod,
+      transaction_reference: generateTerminalReference(location?.code ?? "HIM"),
+      status: "SUCCESS" as const,
+      terminal_id: terminal.id,
+      notes: parts.join(". "),
+      created_by: null,
+    };
+  });
 
   const { data, error } = await supabase
     .from("giving_transactions")

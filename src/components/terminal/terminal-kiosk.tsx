@@ -2,13 +2,23 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { TerminalMemberField } from "@/components/terminal/terminal-member-field";
+import { TerminalOtherNoteDialog } from "@/components/terminal/terminal-other-note-dialog";
+import { TerminalPromptDialog } from "@/components/terminal/terminal-prompt-dialog";
 import { TerminalReceipt, type TerminalReceiptData } from "@/components/terminal/terminal-receipt";
 import { TerminalThemeSwitcher } from "@/components/terminal/terminal-theme-switcher";
 import { useTerminalTheme } from "@/components/terminal/use-terminal-theme";
 import { simulateTerminalBatchPaymentAction } from "@/lib/services/terminal.actions";
 import type { PublicTerminal, TerminalMemberMatch } from "@/lib/services/terminal.service";
-import { displayMemberName, formatAmount, formatTotals, paymentMethodLabel, terminalStatusLabel } from "@/lib/utils/format";
-import { TERMINAL_PAYMENT_METHODS } from "@/lib/validators/terminal.schema";
+import { displayMemberName, formatAmount, formatTotals, terminalStatusLabel } from "@/lib/utils/format";
+import {
+  isOtherGivingCategory,
+  TERMINAL_CARD_CHANNELS,
+  TERMINAL_PAYMENT_METHODS,
+  terminalCardChannelLabel,
+  terminalPaymentDisplay,
+  type TerminalCardChannel,
+  type TerminalPaymentMethod,
+} from "@/lib/validators/terminal.schema";
 import { MVP_CURRENCIES, type MvpCurrency } from "@/types";
 
 const QUICK_AMOUNTS = [10, 20, 50, 100];
@@ -20,6 +30,7 @@ type CartItem = {
   currency: MvpCurrency;
   categoryId: string;
   categoryName: string;
+  notes: string;
 };
 
 type TerminalKioskProps = {
@@ -39,10 +50,15 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState<MvpCurrency>("USD");
   const [categoryId, setCategoryId] = useState(terminal.categories[0]?.id ?? "");
-  const [method, setMethod] = useState<(typeof TERMINAL_PAYMENT_METHODS)[number]>("CASH");
+  const [method, setMethod] = useState<TerminalPaymentMethod>("CASH");
+  const [cardChannel, setCardChannel] = useState<TerminalCardChannel | null>(null);
+  const [receiptCode, setReceiptCode] = useState("");
   const [memberName, setMemberName] = useState("");
   const [selectedMember, setSelectedMember] = useState<TerminalMemberMatch | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [categoryNote, setCategoryNote] = useState("");
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [receiptCodeModalOpen, setReceiptCodeModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<TerminalReceiptData | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -52,6 +68,7 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
     () => terminal.categories.find((category) => category.id === categoryId)?.name ?? "Giving",
     [categoryId, terminal.categories],
   );
+  const otherSelected = isOtherGivingCategory(categoryName);
   const pendingAmount = Number(amount) > 0;
   const checkoutItems = pendingAmount
     ? [
@@ -62,6 +79,7 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
           currency,
           categoryId,
           categoryName,
+          notes: otherSelected ? categoryNote : "",
         },
       ]
     : cart;
@@ -94,11 +112,53 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
 
   function clearAll() {
     setAmount("");
+    setMethod("CASH");
+    setCardChannel(null);
+    setReceiptCode("");
     setMemberName("");
     setSelectedMember(null);
     setCart([]);
+    setCategoryNote("");
+    setNoteModalOpen(false);
+    setReceiptCodeModalOpen(false);
     setError(null);
     setReceipt(null);
+  }
+
+  function selectMethod(value: TerminalPaymentMethod) {
+    setError(null);
+    setMethod(value);
+    if (value === "CASH") {
+      setCardChannel(null);
+      setReceiptCode("");
+      setReceiptCodeModalOpen(false);
+    }
+  }
+
+  function selectCardChannel(channel: TerminalCardChannel) {
+    setError(null);
+    setMethod("CARD");
+    setCardChannel(channel);
+    if (channel === "CBZ") {
+      setReceiptCodeModalOpen(true);
+      return;
+    }
+    setReceiptCode("");
+    setReceiptCodeModalOpen(false);
+  }
+
+  function selectCategory(category: { id: string; name: string }) {
+    setError(null);
+    setCategoryId(category.id);
+    if (isOtherGivingCategory(category.name)) {
+      setNoteModalOpen(true);
+      return;
+    }
+    setCategoryNote("");
+  }
+
+  function currentGiftNeedsNote() {
+    return otherSelected && !categoryNote.trim();
   }
 
   function handleMemberNameChange(value: string) {
@@ -124,6 +184,10 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
       setError("Select a giving category.");
       return;
     }
+    if (currentGiftNeedsNote()) {
+      setNoteModalOpen(true);
+      return;
+    }
     setError(null);
     setCart((current) => [
       ...current,
@@ -133,6 +197,7 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
         currency,
         categoryId,
         categoryName,
+        notes: otherSelected ? categoryNote.trim() : "",
       },
     ]);
     setAmount("");
@@ -143,18 +208,33 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
       setError("Add at least one gift.");
       return;
     }
+    if (pendingAmount && currentGiftNeedsNote()) {
+      setNoteModalOpen(true);
+      return;
+    }
+    if (method === "CARD" && !cardChannel) {
+      setError("Choose a card option.");
+      return;
+    }
+    if (cardChannel === "CBZ" && !receiptCode.trim()) {
+      setReceiptCodeModalOpen(true);
+      return;
+    }
     setError(null);
     startTransition(async () => {
       await new Promise((resolve) => setTimeout(resolve, 700));
       const result = await simulateTerminalBatchPaymentAction({
         terminal_code: terminal.terminal_code,
         payment_method: method,
+        card_channel: cardChannel ?? undefined,
+        receipt_code: receiptCode.trim(),
         member_id: selectedMember?.id ?? "",
         member_name: memberName.trim(),
         items: checkoutItems.map((item) => ({
           giving_category_id: item.categoryId,
           amount: item.amount,
           currency: item.currency,
+          notes: item.notes,
         })),
       });
       if (result.error || result.items.length === 0) {
@@ -176,10 +256,12 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
             reference: item.transaction_reference,
             amount: formatAmount(Number(item.amount), item.currency),
             category: match?.categoryName ?? "Giving",
+            note: match?.notes || undefined,
           };
         }),
         totals: formatTotals(cartTotals(checkoutItems)),
-        method: paymentMethodLabel(method),
+        method: terminalPaymentDisplay(method, cardChannel),
+        receiptCode: cardChannel === "CBZ" ? receiptCode.trim() : undefined,
         location: terminal.location_name,
         terminalCode: terminal.terminal_code,
         paidAt: new Date().toISOString(),
@@ -189,6 +271,7 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
       setMemberName("");
       setSelectedMember(null);
       setCart([]);
+      setCategoryNote("");
     });
   }
 
@@ -306,7 +389,7 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
                     <button
                       key={category.id}
                       type="button"
-                      onClick={() => setCategoryId(category.id)}
+                      onClick={() => selectCategory(category)}
                       className={`min-h-11 rounded-full px-4 text-sm font-semibold ${
                         categoryId === category.id ? "kiosk-brand" : "kiosk-key"
                       }`}
@@ -315,6 +398,15 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
                     </button>
                   ))}
                 </div>
+                {otherSelected && categoryNote ? (
+                  <button
+                    type="button"
+                    className="kiosk-muted mt-3 text-left text-sm"
+                    onClick={() => setNoteModalOpen(true)}
+                  >
+                    Note: {categoryNote}
+                  </button>
+                ) : null}
               </div>
 
               {cart.length > 0 ? (
@@ -325,6 +417,7 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
                       <li key={item.key} className="flex items-center justify-between gap-3 text-sm">
                         <span>
                           {item.categoryName}
+                          {item.notes ? <span className="kiosk-faint"> · {item.notes}</span> : null}
                           <span className="kiosk-faint ml-2 font-mono">
                             {formatAmount(Number(item.amount), item.currency)}
                           </span>
@@ -351,15 +444,40 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
                     <button
                       key={value}
                       type="button"
-                      onClick={() => setMethod(value)}
+                      onClick={() => selectMethod(value)}
                       className={`min-h-12 rounded-xl text-sm font-semibold ${
                         method === value ? "kiosk-key-active" : "kiosk-key"
                       }`}
                     >
-                      {paymentMethodLabel(value)}
+                      {terminalPaymentDisplay(value)}
                     </button>
                   ))}
                 </div>
+                {method === "CARD" ? (
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {TERMINAL_CARD_CHANNELS.map((channel) => (
+                      <button
+                        key={channel}
+                        type="button"
+                        onClick={() => selectCardChannel(channel)}
+                        className={`min-h-12 rounded-xl text-sm font-semibold ${
+                          cardChannel === channel ? "kiosk-key-active" : "kiosk-key"
+                        }`}
+                      >
+                        {terminalCardChannelLabel(channel)}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {cardChannel === "CBZ" && receiptCode ? (
+                  <button
+                    type="button"
+                    className="kiosk-muted mt-3 text-left text-sm"
+                    onClick={() => setReceiptCodeModalOpen(true)}
+                  >
+                    Receipt code: {receiptCode}
+                  </button>
+                ) : null}
               </div>
 
               {error ? (
@@ -404,6 +522,34 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
           </div>
         )}
       </div>
+      {noteModalOpen ? (
+        <TerminalOtherNoteDialog
+          categoryName={categoryName}
+          initialNote={categoryNote}
+          onSave={(note) => {
+            setCategoryNote(note);
+            setNoteModalOpen(false);
+            setError(null);
+          }}
+          onClose={() => setNoteModalOpen(false)}
+        />
+      ) : null}
+      {receiptCodeModalOpen ? (
+        <TerminalPromptDialog
+          title="CBZ receipt code"
+          description="Enter the code printed on the CBZ receipt."
+          label="Receipt code"
+          placeholder="e.g. 48291"
+          initialValue={receiptCode}
+          saveLabel="Save code"
+          onSave={(code) => {
+            setReceiptCode(code);
+            setReceiptCodeModalOpen(false);
+            setError(null);
+          }}
+          onClose={() => setReceiptCodeModalOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

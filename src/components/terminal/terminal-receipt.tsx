@@ -8,12 +8,14 @@ export type TerminalReceiptLine = {
   reference: string;
   amount: string;
   category: string;
+  note?: string;
 };
 
 export type TerminalReceiptData = {
   lines: TerminalReceiptLine[];
   totals: string;
   method: string;
+  receiptCode?: string;
   location: string;
   terminalCode: string;
   paidAt: string;
@@ -89,7 +91,10 @@ export function TerminalReceipt({
                 {receipt.lines.map((line) => (
                   <li key={line.reference} className="border-t border-current/20 pt-3">
                     <div className="flex items-start justify-between gap-4">
-                      <span className="opacity-70">{line.category}</span>
+                      <span className="opacity-70">
+                        {line.category}
+                        {line.note ? <span className="mt-1 block text-xs">{line.note}</span> : null}
+                      </span>
                       <span className="font-medium">{line.amount}</span>
                     </div>
                     <p className="mt-1 break-all text-right font-mono text-xs opacity-70">{line.reference}</p>
@@ -103,10 +108,14 @@ export function TerminalReceipt({
               {giftCount === 1 ? (
                 <>
                   <ReceiptRow label="Category" value={receipt.lines[0]?.category ?? "Giving"} />
+                  {receipt.lines[0]?.note ? <ReceiptRow label="Note" value={receipt.lines[0].note} /> : null}
                   <ReceiptRow label="Reference" value={receipt.lines[0]?.reference ?? "—"} mono />
                 </>
               ) : null}
               <ReceiptRow label="Payment method" value={receipt.method} />
+              {receipt.receiptCode ? (
+                <ReceiptRow label="Receipt code" value={receipt.receiptCode} mono />
+              ) : null}
               <ReceiptRow label="Date" value={formatReceiptDate(receipt.paidAt)} />
               <ReceiptRow label="Terminal" value={receipt.terminalCode} />
             </dl>
