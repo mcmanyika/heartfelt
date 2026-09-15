@@ -45,6 +45,8 @@ body {
   --kiosk-faint: rgba(255, 255, 255, 0.5);
   --kiosk-gold: #c9a227;
   --kiosk-surface: rgba(255, 255, 255, 0.05);
+  --kiosk-modal: #102a4a;
+  --kiosk-field: #0b1f3a;
   --kiosk-key: rgba(255, 255, 255, 0.1);
   --kiosk-border: rgba(255, 255, 255, 0.2);
   --kiosk-accent: #c9a227;
@@ -66,6 +68,8 @@ body {
   --kiosk-faint: #6b7280;
   --kiosk-gold: #8a6d12;
   --kiosk-surface: #ffffff;
+  --kiosk-modal: #ffffff;
+  --kiosk-field: #f4f1ea;
   --kiosk-key: #ffffff;
   --kiosk-border: #d6d3cd;
   --kiosk-accent: #c9a227;
@@ -87,6 +91,8 @@ body {
   --kiosk-faint: #f5f5f5;
   --kiosk-gold: #ffd54a;
   --kiosk-surface: #111111;
+  --kiosk-modal: #111111;
+  --kiosk-field: #1a1a1a;
   --kiosk-key: #1a1a1a;
   --kiosk-border: #ffffff;
   --kiosk-accent: #ffd54a;
@@ -114,6 +120,16 @@ body {
 
 .kiosk-surface {
   background: var(--kiosk-surface);
+}
+
+.kiosk-dialog {
+  background: var(--kiosk-modal);
+  color: var(--kiosk-fg);
+  border: 1px solid var(--kiosk-border);
+}
+
+.kiosk-dialog .kiosk-input {
+  background: var(--kiosk-field);
 }
 
 .kiosk-key {

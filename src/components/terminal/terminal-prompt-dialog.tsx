@@ -47,7 +47,7 @@ export function TerminalPromptDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
         type="button"
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0 bg-black/70"
         aria-label="Close dialog"
         onClick={onClose}
       />
@@ -55,7 +55,7 @@ export function TerminalPromptDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="terminal-prompt-title"
-        className="kiosk-surface relative w-full max-w-md rounded-3xl border border-[color:var(--kiosk-border)] p-6 shadow-lg"
+        className="kiosk-dialog relative w-full max-w-md rounded-3xl p-6 shadow-2xl"
       >
         <h2 id="terminal-prompt-title" className="text-xl font-semibold">
           {title}
