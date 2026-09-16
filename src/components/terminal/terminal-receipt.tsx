@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { TerminalBrand } from "@/components/terminal/terminal-brand";
 import { TerminalThemeSwitcher } from "@/components/terminal/terminal-theme-switcher";
 import type { TerminalTheme } from "@/lib/terminal-theme";
 
@@ -18,6 +19,7 @@ export type TerminalReceiptData = {
   receiptCode?: string;
   location: string;
   organizationName: string;
+  organizationLogoUrl?: string | null;
   terminalCode: string;
   paidAt: string;
   memberName: string;
@@ -75,10 +77,15 @@ export function TerminalReceipt({
           </p>
 
           <article className="terminal-receipt-slip mt-6 w-full max-w-sm rounded-2xl px-6 py-7">
-            <p className="text-center text-[11px] font-semibold tracking-[0.18em] uppercase">
-              {receipt.organizationName}
-            </p>
-            <h2 className="mt-2 text-center text-lg font-semibold">{receipt.location}</h2>
+            <div className="flex justify-center">
+              <TerminalBrand
+                src={receipt.organizationLogoUrl}
+                name={receipt.organizationName}
+                className="h-16"
+                imageClassName="max-h-14 max-w-[200px]"
+              />
+            </div>
+            <h2 className="mt-3 text-center text-lg font-semibold">{receipt.location}</h2>
             <p className="mt-1 text-center text-xs opacity-80">
               {giftCount > 1 ? `Giving receipt · ${giftCount} gifts` : "Giving receipt"}
             </p>

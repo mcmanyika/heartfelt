@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { TerminalBrand } from "@/components/terminal/terminal-brand";
 import { TerminalMemberField } from "@/components/terminal/terminal-member-field";
 import { TerminalOtherNoteDialog } from "@/components/terminal/terminal-other-note-dialog";
 import { TerminalPromptDialog } from "@/components/terminal/terminal-prompt-dialog";
@@ -264,6 +265,7 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
         receiptCode: cardChannel === "CBZ" ? receiptCode.trim() : undefined,
         location: terminal.location_name,
         organizationName: terminal.organization_name,
+        organizationLogoUrl: terminal.organization_logo_url,
         terminalCode: terminal.terminal_code,
         paidAt: new Date().toISOString(),
         memberName: result.member_name || memberName.trim() || "Guest",
@@ -292,10 +294,8 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
       <div className="mx-auto flex min-h-full max-w-5xl flex-col px-4 py-6 sm:px-8">
         <header className="kiosk-hairline flex flex-wrap items-start justify-between gap-4 border-b pb-5">
           <div>
-            <p className="kiosk-gold text-[11px] font-semibold tracking-[0.18em] uppercase">
-              {terminal.organization_name}
-            </p>
-            <h1 className="mt-2 text-2xl font-semibold">{terminal.location_name}</h1>
+            <TerminalBrand src={terminal.organization_logo_url} name={terminal.organization_name} />
+            <h1 className="mt-3 text-2xl font-semibold">{terminal.location_name}</h1>
             <p className="kiosk-muted mt-1 text-sm">
               {terminal.terminal_code} · {terminal.device_name}
             </p>

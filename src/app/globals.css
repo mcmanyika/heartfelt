@@ -245,4 +245,8 @@ body {
     color: #111 !important;
     box-shadow: none;
   }
+
+  .terminal-receipt-slip img {
+    max-height: 48px;
+  }
 }

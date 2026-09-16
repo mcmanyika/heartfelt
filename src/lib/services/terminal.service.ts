@@ -55,6 +55,7 @@ export type PublicTerminal = {
   device_name: string;
   status: TerminalStatus;
   organization_name: string;
+  organization_logo_url: string | null;
   location_name: string;
   location_code: string;
   categories: Array<{ id: string; name: string }>;
@@ -475,6 +476,7 @@ export async function getPublicTerminal(terminalCode: string) {
       device_name: String(row.device_name),
       status: row.status as TerminalStatus,
       organization_name: tenant.name,
+      organization_logo_url: tenant.logo_url,
       location_name: locationRow?.name ?? tenant.name,
       location_code: locationRow?.code ?? "—",
       categories: (categories ?? []) as Array<{ id: string; name: string }>,
