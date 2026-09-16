@@ -12,6 +12,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { ChurchLogo } from "@/components/ui/church-logo";
 import { isMemberNavActive, MEMBER_NAV_ITEMS } from "@/lib/auth/member-nav";
 import { cn } from "@/lib/utils/cn";
 
@@ -28,21 +29,35 @@ const ICONS = {
 type MemberShellProps = {
   firstName: string;
   organizationName: string;
+  organizationLogoUrl?: string | null;
   children: React.ReactNode;
 };
 
-export function MemberShell({ firstName, organizationName, children }: MemberShellProps) {
+export function MemberShell({
+  firstName,
+  organizationName,
+  organizationLogoUrl,
+  children,
+}: MemberShellProps) {
   const pathname = usePathname();
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-background">
       <header className="sticky top-0 z-20 bg-navy text-white">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold tracking-[0.18em] text-gold uppercase">
-              {organizationName}
-            </p>
-            <p className="mt-1 truncate text-sm text-white/85">Welcome, {firstName}</p>
+          <div className="flex min-w-0 items-center gap-3">
+            <ChurchLogo
+              src={organizationLogoUrl}
+              name={organizationName}
+              className="h-10 w-10 shrink-0 rounded-lg bg-white p-1"
+              imageClassName="max-h-8 max-w-8"
+            />
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold tracking-[0.18em] text-gold uppercase">
+                {organizationName}
+              </p>
+              <p className="mt-1 truncate text-sm text-white/85">Welcome, {firstName}</p>
+            </div>
           </div>
           <LogoutButton />
         </div>

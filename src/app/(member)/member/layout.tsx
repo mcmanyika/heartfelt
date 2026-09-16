@@ -11,7 +11,11 @@ export default async function MemberLayout({
   const current = await requireRole("MEMBER");
 
   return (
-    <MemberShell firstName={current.profile.first_name} organizationName={current.organizationName}>
+    <MemberShell
+      firstName={current.profile.first_name}
+      organizationName={current.organizationName}
+      organizationLogoUrl={current.organizationLogoUrl}
+    >
       {children}
     </MemberShell>
   );

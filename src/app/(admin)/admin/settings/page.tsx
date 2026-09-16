@@ -1,4 +1,5 @@
 import { OrganizationForm } from "@/components/forms/organization-form";
+import { OrganizationLogoForm } from "@/components/forms/organization-logo-form";
 import { PageHeader } from "@/components/ui/page-header";
 import { getOrganization } from "@/lib/services/organization.service";
 import { requestTenantOrigin } from "@/lib/tenant/request-origin";
@@ -18,16 +19,19 @@ export default async function AdminSettingsPage() {
       ) : null}
 
       {organization ? (
-        <OrganizationForm
-          slug={organization.slug}
-          shortCode={organization.short_code}
-          churchUrl={churchUrl}
-          defaultValues={{
-            name: organization.name,
-            email: organization.email ?? "",
-            phone: organization.phone ?? "",
-          }}
-        />
+        <div className="space-y-6">
+          <OrganizationLogoForm organizationName={organization.name} logoSrc={organization.logo_src} />
+          <OrganizationForm
+            slug={organization.slug}
+            shortCode={organization.short_code}
+            churchUrl={churchUrl}
+            defaultValues={{
+              name: organization.name,
+              email: organization.email ?? "",
+              phone: organization.phone ?? "",
+            }}
+          />
+        </div>
       ) : null}
     </>
   );

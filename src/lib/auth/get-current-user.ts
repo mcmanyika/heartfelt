@@ -2,6 +2,7 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { isAppRole, resolvePrimaryRole } from "@/lib/auth/permissions";
 import type { AccessibleLocation, CurrentUser, RoleAssignment } from "@/lib/auth/types";
+import { resolveOrganizationLogoUrl } from "@/lib/storage/organization-logo";
 import type { Database } from "@/types/database.types";
 import { logServerError } from "@/lib/utils/log-server-error";
 
@@ -197,7 +198,7 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
     organizationName: organization.name,
     organizationSlug: organization.slug,
     organizationShortCode: organization.short_code,
-    organizationLogoUrl: organization.logo_url,
+    organizationLogoUrl: await resolveOrganizationLogoUrl(organization.logo_url),
     assignments,
     roleNames,
     primaryRole: resolvePrimaryRole(roleNames),

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { RegisterForm } from "@/components/auth/register-form";
+import { ChurchLogo } from "@/components/ui/church-logo";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { resolvePostLoginPath } from "@/lib/auth/redirect";
 import { listPublicCampuses } from "@/lib/services/registration.service";
@@ -22,6 +23,12 @@ export default async function RegisterPage() {
 
   return (
     <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
+      <ChurchLogo
+        src={tenant.logo_url}
+        name={tenant.name}
+        className="mb-4 h-16 w-full"
+        imageClassName="max-h-16 max-w-[220px]"
+      />
       <p className="text-sm font-medium tracking-wide text-maroon uppercase">{tenant.name}</p>
       <h1 className="mt-3 text-2xl font-semibold tracking-tight text-navy">Create an account</h1>
       <p className="mt-2 text-sm leading-6 text-gray-600">

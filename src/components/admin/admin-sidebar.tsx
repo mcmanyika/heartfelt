@@ -19,6 +19,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { ChurchLogo } from "@/components/ui/church-logo";
 import { isAdminNavActive, type AdminNavItem } from "@/lib/auth/admin-nav";
 import { cn } from "@/lib/utils/cn";
 
@@ -46,6 +47,7 @@ export type AdminSidebarUser = {
   locationLabel: string;
   organizationName: string;
   organizationShortCode: string;
+  organizationLogoUrl: string | null;
 };
 
 type AdminSidebarProps = {
@@ -59,6 +61,12 @@ export function AdminSidebar({ items, user }: AdminSidebarProps) {
   return (
     <div className="flex h-full flex-col bg-navy text-white">
       <div className="border-b border-white/10 px-5 py-5">
+        <ChurchLogo
+          src={user.organizationLogoUrl}
+          name={user.organizationName}
+          className="mb-3 h-12 w-12 rounded-xl bg-white p-1.5"
+          imageClassName="max-h-9 max-w-9"
+        />
         <p className="text-[11px] font-semibold tracking-[0.18em] text-gold uppercase">
           {user.organizationShortCode}
         </p>

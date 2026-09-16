@@ -30,6 +30,7 @@ export default async function AdminLayout({
         locationLabel,
         organizationName: current.organizationName,
         organizationShortCode: current.organizationShortCode,
+        organizationLogoUrl: current.organizationLogoUrl,
       }}
       navItems={[...navItems]}
       locationLocked={selection.locked}

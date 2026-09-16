@@ -4,6 +4,7 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveOrganizationLogoUrl } from "@/lib/storage/organization-logo";
 import { TENANT_HEADER, isValidTenantSlug } from "@/lib/tenant/config";
 import { logServerError } from "@/lib/utils/log-server-error";
 
@@ -69,7 +70,7 @@ async function loadTenantBySlug(slug: string) {
       name: row.name,
       slug: row.slug === "heartfelt-international-ministries" ? "heartfelt" : row.slug,
       short_code: (row.short_code ?? (row.slug.includes("heartfelt") ? "HIM" : "ORG")).toUpperCase(),
-      logo_url: row.logo_url,
+      logo_url: await resolveOrganizationLogoUrl(row.logo_url),
     } satisfies PublicTenant;
   } catch (error) {
     logServerError("tenant.lookup", error);
