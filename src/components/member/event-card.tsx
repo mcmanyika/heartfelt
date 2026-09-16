@@ -9,7 +9,7 @@ type EventCardProps = {
 
 export function EventCard({ event, showActions = true }: EventCardProps) {
   return (
-    <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+    <article className="rounded-2xl border border-border bg-card p-5">
       <p className="text-xs font-medium tracking-wide text-gray-500 uppercase">
         {event.location_name ?? "All locations"}
       </p>

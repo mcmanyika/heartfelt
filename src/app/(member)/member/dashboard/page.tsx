@@ -100,7 +100,7 @@ export default async function MemberDashboardPage() {
         ) : (
           <div className="space-y-3">
             {announcements.slice(0, 4).map((item) => (
-              <article key={item.id} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <article key={item.id} className="rounded-2xl border border-border bg-card p-5">
                 <p className="text-xs font-medium tracking-wide text-gray-500 uppercase">
                   {item.location_name ?? "All locations"}
                 </p>

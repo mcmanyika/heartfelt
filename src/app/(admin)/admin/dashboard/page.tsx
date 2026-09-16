@@ -41,7 +41,7 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
         }
       />
 
-      <form className="mb-5 grid gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm md:grid-cols-4">
+      <form className="mb-5 grid gap-3 rounded-2xl border border-border bg-card p-4 md:grid-cols-4">
         <SearchInput defaultValue={params.q} placeholder="Search listings" />
         <label className="text-sm font-medium text-navy">
           From
@@ -156,7 +156,7 @@ function FeedCard({
       {items.length === 0 ? (
         <EmptyState title={empty} />
       ) : (
-        <ul className="divide-y divide-border rounded-2xl border border-border bg-card shadow-sm">
+        <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
           {items.map((item) => (
             <li key={item.id} className="px-4 py-3">
               <p className="text-sm font-medium text-navy">{item.title}</p>

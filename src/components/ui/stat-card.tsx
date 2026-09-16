@@ -7,7 +7,7 @@ type StatCardProps = {
 
 export function StatCard({ label, value = "—", hint, loading = false }: StatCardProps) {
   return (
-    <article className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm">
+    <article className="min-w-0 rounded-2xl border border-border bg-card p-5">
       <p className="text-xs font-medium tracking-wide text-gray-500 uppercase">{label}</p>
       {loading ? (
         <div className="mt-3 h-8 w-24 animate-pulse rounded bg-gray-200" />

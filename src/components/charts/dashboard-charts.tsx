@@ -122,7 +122,7 @@ export function DashboardCharts({
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+    <div className="rounded-2xl border border-border bg-card p-5">
       <p className="text-sm font-semibold text-navy">{title}</p>
       <div className="mt-4">{children}</div>
     </div>
