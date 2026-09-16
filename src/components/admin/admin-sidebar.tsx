@@ -46,36 +46,37 @@ export type AdminSidebarUser = {
   roleLabel: string;
   locationLabel: string;
   organizationName: string;
-  organizationShortCode: string;
   organizationLogoUrl: string | null;
 };
 
 type AdminSidebarProps = {
   items: AdminNavItem[];
   user: AdminSidebarUser;
+  variant?: "expanded" | "rail";
 };
 
-export function AdminSidebar({ items, user }: AdminSidebarProps) {
+export function AdminSidebar({ items, user, variant = "expanded" }: AdminSidebarProps) {
   const pathname = usePathname();
+  const rail = variant === "rail";
+  const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+  const hoverLabel = rail
+    ? "hidden whitespace-nowrap group-hover/sidebar:inline group-focus-within/sidebar:inline"
+    : "whitespace-nowrap";
 
   return (
     <div className="flex h-full flex-col bg-navy text-white">
-      <div className="border-b border-white/10 px-5 py-5">
-        <ChurchLogo
-          src={user.organizationLogoUrl}
-          name={user.organizationName}
-          className="mb-3 h-12 w-12 rounded-xl bg-white p-1.5"
-          imageClassName="max-h-9 max-w-9"
-        />
-        <p className="text-[11px] font-semibold tracking-[0.18em] text-gold uppercase">
-          {user.organizationShortCode}
-        </p>
-        <p className="mt-2 text-sm leading-5 font-semibold">
-          {user.organizationName}
-        </p>
-      </div>
+      {user.organizationLogoUrl ? (
+        <div className="border-b border-white/10 px-3 py-4">
+          <ChurchLogo
+            src={user.organizationLogoUrl}
+            name={user.organizationName}
+            className="h-9 w-9 shrink-0 rounded-xl bg-white p-1"
+            imageClassName="max-h-7 max-w-7"
+          />
+        </div>
+      ) : null}
 
-      <nav aria-label="Admin" className="flex-1 overflow-y-auto px-3 py-4">
+      <nav aria-label="Admin" className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-3">
         <ul className="space-y-1">
           {items.map((item) => {
             const Icon = ICONS[item.icon];
@@ -85,6 +86,7 @@ export function AdminSidebar({ items, user }: AdminSidebarProps) {
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  aria-label={item.label}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition",
                     active
@@ -93,8 +95,8 @@ export function AdminSidebar({ items, user }: AdminSidebarProps) {
                   )}
                   aria-current={active ? "page" : undefined}
                 >
-                  <Icon className="size-4 shrink-0" aria-hidden="true" />
-                  <span>{item.label}</span>
+                  <Icon className="size-5 shrink-0" aria-hidden="true" />
+                  <span className={hoverLabel}>{item.label}</span>
                 </Link>
               </li>
             );
@@ -102,14 +104,24 @@ export function AdminSidebar({ items, user }: AdminSidebarProps) {
         </ul>
       </nav>
 
-      <div className="border-t border-white/10 px-4 py-4">
-        <p className="truncate text-sm font-medium">
-          {user.firstName} {user.lastName}
-        </p>
-        <p className="mt-0.5 truncate text-xs text-gold">{user.roleLabel}</p>
-        <p className="mt-0.5 truncate text-xs text-white/70">{user.locationLabel}</p>
-        <div className="mt-3">
-          <LogoutButton variant="sidebar" />
+      <div className="border-t border-white/10 px-2 py-4">
+        <div className="flex items-center gap-3 px-2">
+          <div
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold"
+            aria-hidden="true"
+          >
+            {initials}
+          </div>
+          <div className={cn("min-w-0", rail && "hidden group-hover/sidebar:block group-focus-within/sidebar:block")}>
+            <p className="truncate text-sm font-medium">
+              {user.firstName} {user.lastName}
+            </p>
+            <p className="mt-0.5 truncate text-xs text-gold">{user.roleLabel}</p>
+            <p className="mt-0.5 truncate text-xs text-white/70">{user.locationLabel}</p>
+          </div>
+        </div>
+        <div className="mt-3 px-1">
+          <LogoutButton variant="sidebar" compact={rail} />
         </div>
       </div>
     </div>

@@ -29,7 +29,6 @@ export default async function AdminLayout({
         roleLabel: current.primaryRole ? roleLabel(current.primaryRole) : "Staff",
         locationLabel,
         organizationName: current.organizationName,
-        organizationShortCode: current.organizationShortCode,
         organizationLogoUrl: current.organizationLogoUrl,
       }}
       navItems={[...navItems]}

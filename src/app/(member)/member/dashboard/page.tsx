@@ -2,6 +2,7 @@ import Link from "next/link";
 import { EventCard } from "@/components/member/event-card";
 import { GivingTable } from "@/components/member/giving-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { GivingTotalsValue } from "@/components/ui/giving-totals";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import {
@@ -10,7 +11,6 @@ import {
   listMyEvents,
   listMyGiving,
 } from "@/lib/services/portal.service";
-import { formatAmount } from "@/lib/utils/format";
 
 export default async function MemberDashboardPage() {
   const [{ member, location }, giving, events, announcements] = await Promise.all([
@@ -19,11 +19,6 @@ export default async function MemberDashboardPage() {
     listMyEvents(),
     listMyAnnouncements(),
   ]);
-
-  const givingHint =
-    giving.totals.length > 0
-      ? giving.totals.map((total) => formatAmount(total.amount, total.currency)).join(" · ")
-      : "No successful giving this year";
 
   return (
     <>
@@ -45,8 +40,8 @@ export default async function MemberDashboardPage() {
         />
         <StatCard
           label="Giving this year"
-          value={giving.totals.length === 1 ? formatAmount(giving.totals[0].amount, giving.totals[0].currency) : giving.totals.length ? `${giving.totals.length} currencies` : "—"}
-          hint={givingHint}
+          value={<GivingTotalsValue totals={giving.totals} />}
+          hint={giving.totals.length > 0 ? "Successful gifts this year" : "No successful giving this year"}
         />
         <StatCard
           label="Upcoming events"

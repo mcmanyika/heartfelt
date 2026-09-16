@@ -3,10 +3,11 @@ import { DashboardCharts } from "@/components/charts/dashboard-charts";
 import { EmptyState } from "@/components/ui/empty-state";
 import { fieldClassName } from "@/components/ui/form-field";
 import { PageHeader } from "@/components/ui/page-header";
+import { GivingTotalsValue } from "@/components/ui/giving-totals";
 import { SearchInput } from "@/components/ui/search-input";
 import { StatCard } from "@/components/ui/stat-card";
 import { getDashboardData, parseDashboardRange } from "@/lib/services/dashboard.service";
-import { formatAmount, formatDate, formatDateTime, formatTotals, paymentMethodLabel } from "@/lib/utils/format";
+import { formatAmount, formatDate, formatDateTime, paymentMethodLabel } from "@/lib/utils/format";
 
 type DashboardPageProps = {
   searchParams: Promise<{ from?: string; to?: string; q?: string }>;
@@ -41,7 +42,7 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
         }
       />
 
-      <form className="mb-5 grid gap-3 rounded-2xl border border-border bg-card p-4 md:grid-cols-4">
+      <form className="mb-5 grid items-end gap-3 rounded-2xl border border-border bg-card p-4 md:grid-cols-4">
         <SearchInput defaultValue={params.q} placeholder="Search listings" />
         <label className="text-sm font-medium text-navy">
           From
@@ -56,26 +57,20 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
           To
           <input type="date" name="to" defaultValue={range.to} className={`${fieldClassName} mt-1.5`} />
         </label>
-        <div>
-          <button type="submit" className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white">
-            Apply filters
-          </button>
-        </div>
+        <button type="submit" className="h-11 w-full rounded-lg bg-navy px-5 text-sm font-semibold text-white">
+          Apply filters
+        </button>
       </form>
 
-      <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <StatCard label="Total Members" value={String(data.memberCount)} hint={scope} />
-        <StatCard
-          label="Total Giving"
-          value={
-            data.summary.totals.length === 1
-              ? formatAmount(data.summary.totals[0].amount, data.summary.totals[0].currency)
-              : data.summary.totals.length
-                ? `${data.summary.totals.length} currencies`
-                : "—"
-          }
-          hint={formatTotals(data.summary.totals)}
-        />
+        <div className="xl:col-span-2">
+          <StatCard
+            label="Total Giving"
+            value={<GivingTotalsValue totals={data.summary.totals} />}
+            hint={scope}
+          />
+        </div>
         <StatCard
           label="Total Transactions"
           value={String(data.summary.successfulCount)}

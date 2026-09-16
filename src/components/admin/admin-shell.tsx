@@ -47,8 +47,8 @@ export function AdminShell({
 
   return (
     <div className="min-h-full bg-background">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-navy-deep lg:block">
-        <AdminSidebar items={navItems} user={user} />
+      <aside className="group/sidebar fixed inset-y-0 left-0 z-40 hidden w-16 overflow-hidden border-r border-navy-deep transition-[width] duration-200 ease-out hover:w-72 hover:shadow-xl focus-within:w-72 lg:block">
+        <AdminSidebar items={navItems} user={user} variant="rail" />
       </aside>
 
       {open ? (
@@ -71,7 +71,7 @@ export function AdminShell({
         </div>
       ) : null}
 
-      <div className="lg:pl-72">
+      <div className="lg:pl-16">
         <header className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur">
           <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
             <div className="flex min-w-0 items-center gap-3">

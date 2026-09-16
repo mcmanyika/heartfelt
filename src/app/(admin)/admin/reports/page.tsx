@@ -3,6 +3,7 @@ import { ReportTable } from "@/components/admin/report-table";
 import { GivingTrendChart } from "@/components/charts/dashboard-charts";
 import { fieldClassName } from "@/components/ui/form-field";
 import { PageHeader } from "@/components/ui/page-header";
+import { GivingTotalsValue } from "@/components/ui/giving-totals";
 import { StatCard } from "@/components/ui/stat-card";
 import { getAdminLocationSelection } from "@/lib/auth/admin-location";
 import { requireRole } from "@/lib/auth/require-role";
@@ -10,7 +11,6 @@ import { STAFF_ROLES } from "@/lib/auth/types";
 import { parseDashboardRange } from "@/lib/services/dashboard.service";
 import { getStaffReport } from "@/lib/services/report.service";
 import {
-  formatAmount,
   formatDate,
   formatTotals,
   formatTotalsRecord,
@@ -51,18 +51,7 @@ export default async function AdminReportsPage({ searchParams }: ReportsPageProp
   const memberCount = report.membersByLocation.reduce((sum, row) => sum + row.members, 0);
   const showCampusStat = !report.locationId;
   const showCampusBreakdown = showCampusStat && report.summary.byLocation.length > 1;
-  const givingValue =
-    report.summary.totals.length === 0 ? (
-      "—"
-    ) : report.summary.totals.length === 1 ? (
-      formatAmount(report.summary.totals[0].amount, report.summary.totals[0].currency)
-    ) : (
-      <span className="flex flex-col gap-1 text-lg leading-tight">
-        {report.summary.totals.map((total) => (
-          <span key={total.currency}>{formatAmount(total.amount, total.currency)}</span>
-        ))}
-      </span>
-    );
+  const givingValue = <GivingTotalsValue totals={report.summary.totals} />;
 
   return (
     <>
