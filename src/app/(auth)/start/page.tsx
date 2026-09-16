@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChurchSignupForm } from "@/components/auth/church-signup-form";
-import { PRODUCT_NAME, apexOrigin } from "@/lib/tenant/config";
+import { PRODUCT_NAME } from "@/lib/tenant/config";
+import { getRequestRootDomain, requestApexOrigin } from "@/lib/tenant/request-origin";
 import { resolveTenant } from "@/lib/tenant/get-tenant";
 
 export default async function StartChurchPage() {
@@ -10,8 +11,10 @@ export default async function StartChurchPage() {
     redirect("/login");
   }
   if (resolution.kind === "missing") {
-    redirect(apexOrigin());
+    redirect(await requestApexOrigin());
   }
+
+  const rootDomain = await getRequestRootDomain();
 
   return (
     <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
@@ -20,7 +23,7 @@ export default async function StartChurchPage() {
       <p className="mt-2 text-sm leading-6 text-gray-600">
         Create an organization, first campus, and administrator account. Members register later on your church address.
       </p>
-      <ChurchSignupForm />
+      <ChurchSignupForm rootDomain={rootDomain} />
       <p className="mt-6 text-center text-sm text-gray-500">
         Already have a church?{" "}
         <Link href="/login" className="font-medium text-maroon hover:underline">

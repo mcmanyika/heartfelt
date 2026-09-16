@@ -23,8 +23,48 @@ export const RESERVED_TENANT_SLUGS = new Set([
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$/;
 const SHORT_CODE_PATTERN = /^[A-Z0-9]{2,8}$/;
 
+export function isLoopbackHost(value: string) {
+  const { hostname } = splitHostPort(value);
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname.endsWith(".localhost")
+  );
+}
+
+export function getConfiguredRootDomain() {
+  return process.env.ROOT_DOMAIN?.trim() || process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || "";
+}
+
 export function getRootDomain() {
-  return process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || "localhost:3000";
+  return getConfiguredRootDomain() || "localhost:3000";
+}
+
+export function rootDomainForHost(hostHeader: string) {
+  const configured = getConfiguredRootDomain();
+  if (configured && !isLoopbackHost(configured)) {
+    return configured;
+  }
+
+  const { hostname, port } = splitHostPort(hostHeader);
+  if (hostname && !isLoopbackHost(hostname)) {
+    const apex = hostname.replace(/^www\./, "");
+    return port ? `${apex}:${port}` : apex;
+  }
+
+  return configured || "localhost:3000";
+}
+
+export function originProtocolFor(rootDomain: string, forwardedProto?: string | null) {
+  const proto = forwardedProto?.split(",")[0]?.trim().toLowerCase();
+  if (proto === "http" || proto === "https") {
+    return proto;
+  }
+  if (isLoopbackHost(rootDomain) || process.env.NODE_ENV !== "production") {
+    return "http";
+  }
+  return "https";
 }
 
 export function isValidTenantSlug(slug: string) {
@@ -86,19 +126,23 @@ export function tenantSlugFromHost(hostHeader: string, rootDomain = getRootDomai
 }
 
 export function originProtocol() {
-  const root = getRootDomain();
-  if (root.includes("localhost") || root.startsWith("127.0.0.1") || process.env.NODE_ENV !== "production") {
-    return "http";
-  }
-  return "https";
+  return originProtocolFor(getRootDomain());
+}
+
+export function originForRoot(rootDomain: string, forwardedProto?: string | null) {
+  return `${originProtocolFor(rootDomain, forwardedProto)}://${rootDomain}`;
 }
 
 export function apexOrigin() {
-  return `${originProtocol()}://${getRootDomain()}`;
+  return originForRoot(getRootDomain());
+}
+
+export function tenantOriginForRoot(slug: string, rootDomain: string, forwardedProto?: string | null) {
+  const root = splitHostPort(rootDomain);
+  const host = root.port ? `${slug}.${root.hostname}:${root.port}` : `${slug}.${root.hostname}`;
+  return `${originProtocolFor(rootDomain, forwardedProto)}://${host}`;
 }
 
 export function tenantOrigin(slug: string) {
-  const root = splitHostPort(getRootDomain());
-  const host = root.port ? `${slug}.${root.hostname}:${root.port}` : `${slug}.${root.hostname}`;
-  return `${originProtocol()}://${host}`;
+  return tenantOriginForRoot(slug, getRootDomain());
 }

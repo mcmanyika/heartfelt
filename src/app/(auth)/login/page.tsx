@@ -5,6 +5,7 @@ import { LoginForm } from "@/components/auth/login-form";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { resolvePostLoginPath } from "@/lib/auth/redirect";
 import { PRODUCT_NAME } from "@/lib/tenant/config";
+import { getRequestRootDomain } from "@/lib/tenant/request-origin";
 import { resolveTenant } from "@/lib/tenant/get-tenant";
 import { safeInternalPath } from "@/lib/utils/safe-redirect";
 
@@ -58,6 +59,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   }
 
   if (!tenant) {
+    const rootDomain = await getRequestRootDomain();
     return (
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
         <p className="text-sm font-medium tracking-wide text-maroon uppercase">{PRODUCT_NAME}</p>
@@ -65,7 +67,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <p className="mt-2 text-sm leading-6 text-gray-600">
           Enter your church address to continue to that congregation’s sign-in page.
         </p>
-        <ChurchFinderForm />
+        <ChurchFinderForm rootDomain={rootDomain} />
         <p className="mt-6 text-center text-sm text-gray-500">
           Starting a new church?{" "}
           <Link href="/start" className="font-medium text-maroon hover:underline">

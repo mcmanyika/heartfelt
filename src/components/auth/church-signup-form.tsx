@@ -5,13 +5,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { fieldClassName, FormField } from "@/components/ui/form-field";
 import { createChurchAction } from "@/lib/services/church-signup.actions";
-import { getRootDomain } from "@/lib/tenant/config";
 import { churchSignupSchema, type ChurchSignupInput } from "@/lib/validators/church-signup.schema";
 
-export function ChurchSignupForm() {
+type ChurchSignupFormProps = {
+  rootDomain: string;
+};
+
+export function ChurchSignupForm({ rootDomain }: ChurchSignupFormProps) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const rootDomain = getRootDomain();
   const {
     register,
     handleSubmit,

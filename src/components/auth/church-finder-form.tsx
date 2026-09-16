@@ -3,11 +3,13 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { fieldClassName, FormField } from "@/components/ui/form-field";
-import { getRootDomain, originProtocol } from "@/lib/tenant/config";
 import { churchSlugSchema, type ChurchSlugInput } from "@/lib/validators/church-signup.schema";
 
-export function ChurchFinderForm() {
-  const rootDomain = getRootDomain();
+type ChurchFinderFormProps = {
+  rootDomain: string;
+};
+
+export function ChurchFinderForm({ rootDomain }: ChurchFinderFormProps) {
   const {
     register,
     handleSubmit,
@@ -18,7 +20,8 @@ export function ChurchFinderForm() {
   });
 
   function onSubmit(values: ChurchSlugInput) {
-    window.location.assign(`${originProtocol()}://${values.slug}.${rootDomain}/login`);
+    const protocol = window.location.protocol === "http:" ? "http" : "https";
+    window.location.assign(`${protocol}://${values.slug}.${rootDomain}/login`);
   }
 
   return (

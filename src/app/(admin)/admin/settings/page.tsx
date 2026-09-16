@@ -1,10 +1,11 @@
 import { OrganizationForm } from "@/components/forms/organization-form";
 import { PageHeader } from "@/components/ui/page-header";
 import { getOrganization } from "@/lib/services/organization.service";
-import { tenantOrigin } from "@/lib/tenant/config";
+import { requestTenantOrigin } from "@/lib/tenant/request-origin";
 
 export default async function AdminSettingsPage() {
   const { organization, error } = await getOrganization();
+  const churchUrl = organization ? await requestTenantOrigin(organization.slug) : "";
 
   return (
     <>
@@ -20,7 +21,7 @@ export default async function AdminSettingsPage() {
         <OrganizationForm
           slug={organization.slug}
           shortCode={organization.short_code}
-          churchUrl={tenantOrigin(organization.slug)}
+          churchUrl={churchUrl}
           defaultValues={{
             name: organization.name,
             email: organization.email ?? "",

@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { tenantOrigin } from "@/lib/tenant/config";
+import { requestTenantOrigin } from "@/lib/tenant/request-origin";
 import { emptyToNull, firstZodError, userSafeDatabaseError } from "@/lib/utils/forms";
 import { logServerError } from "@/lib/utils/log-server-error";
 import { churchSignupSchema } from "@/lib/validators/church-signup.schema";
@@ -229,5 +229,5 @@ export async function createChurchOrganization(input: unknown) {
     logServerError("church-signup.audit", auditError);
   }
 
-  return { ok: true as const, redirectTo: `${tenantOrigin(parsed.data.slug)}/login?reason=church-ready` };
+  return { ok: true as const, redirectTo: `${await requestTenantOrigin(parsed.data.slug)}/login?reason=church-ready` };
 }
