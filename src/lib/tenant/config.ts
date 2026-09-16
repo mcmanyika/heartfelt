@@ -1,6 +1,8 @@
 export const PRODUCT_NAME = process.env.NEXT_PUBLIC_PRODUCT_NAME?.trim() || "Heartfelt Connect";
 
 export const TENANT_HEADER = "x-tenant-slug";
+export const TENANT_COOKIE = "hf_tenant";
+export const TENANT_PATH_PREFIX = "c";
 
 export const RESERVED_TENANT_SLUGS = new Set([
   "www",
@@ -102,6 +104,44 @@ export function isValidShortCode(code: string) {
   return SHORT_CODE_PATTERN.test(code);
 }
 
+export function supportsTenantSubdomains(rootDomain: string) {
+  const { hostname } = splitHostPort(normalizeRootDomain(rootDomain) || rootDomain);
+  if (!hostname) {
+    return false;
+  }
+  if (isLoopbackHost(hostname)) {
+    return true;
+  }
+  return !(
+    hostname === "vercel.app" ||
+    hostname.endsWith(".vercel.app") ||
+    hostname.endsWith(".netlify.app") ||
+    hostname.endsWith(".fly.dev")
+  );
+}
+
+export function tenantPath(slug: string, pathname = "/") {
+  const suffix = pathname === "/" ? "" : pathname.startsWith("/") ? pathname : `/${pathname}`;
+  return `/${TENANT_PATH_PREFIX}/${slug}${suffix}`;
+}
+
+export function tenantSlugFromPathname(pathname: string) {
+  const match = pathname.match(new RegExp(`^/${TENANT_PATH_PREFIX}/([a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?)(?:/|$)`));
+  const slug = match?.[1] ?? "";
+  return isValidTenantSlug(slug) ? slug : null;
+}
+
+export function stripTenantPath(pathname: string, slug: string) {
+  const prefix = `/${TENANT_PATH_PREFIX}/${slug}`;
+  if (pathname === prefix) {
+    return "/";
+  }
+  if (pathname.startsWith(`${prefix}/`)) {
+    return pathname.slice(prefix.length) || "/";
+  }
+  return pathname;
+}
+
 export function splitHostPort(host: string) {
   const trimmed = host.trim().toLowerCase().split(",")[0]?.trim() ?? "";
   if (!trimmed) {
@@ -167,6 +207,11 @@ export function apexOrigin() {
 
 export function tenantOriginForRoot(slug: string, rootDomain: string, forwardedProto?: string | null) {
   const normalized = normalizeRootDomain(rootDomain) || rootDomain;
+  const apex = originForRoot(normalized, forwardedProto);
+  if (!supportsTenantSubdomains(normalized)) {
+    return `${apex}${tenantPath(slug)}`;
+  }
+
   const root = splitHostPort(normalized);
   const host = root.port ? `${slug}.${root.hostname}:${root.port}` : `${slug}.${root.hostname}`;
   return `${originProtocolFor(normalized, forwardedProto)}://${host}`;

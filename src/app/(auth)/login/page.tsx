@@ -96,6 +96,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           Register
         </Link>
         {" · "}
+        <Link href="/login?changeChurch=1" className="font-medium text-maroon hover:underline">
+          Different church
+        </Link>
+        {" · "}
         <Link href="/" className="font-medium text-maroon hover:underline">
           Back to home
         </Link>

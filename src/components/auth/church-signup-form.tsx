@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { fieldClassName, FormField } from "@/components/ui/form-field";
 import { createChurchAction } from "@/lib/services/church-signup.actions";
-import { normalizeRootDomain } from "@/lib/tenant/config";
+import { normalizeRootDomain, supportsTenantSubdomains, tenantPath } from "@/lib/tenant/config";
 import { churchSignupSchema, type ChurchSignupInput } from "@/lib/validators/church-signup.schema";
 
 type ChurchSignupFormProps = {
@@ -16,6 +16,7 @@ export function ChurchSignupForm({ rootDomain }: ChurchSignupFormProps) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const host = normalizeRootDomain(rootDomain) || rootDomain;
+  const usesSubdomains = supportsTenantSubdomains(host);
   const {
     register,
     handleSubmit,
@@ -40,6 +41,13 @@ export function ChurchSignupForm({ rootDomain }: ChurchSignupFormProps) {
   });
 
   const slug = watch("slug");
+  const addressPreview = slug
+    ? usesSubdomains
+      ? `${slug}.${host}`
+      : `${host}${tenantPath(slug)}`
+    : usesSubdomains
+      ? `Your members will use a subdomain of ${host}.`
+      : `Your members will sign in at ${host}/c/your-church.`;
 
   function onSubmit(values: ChurchSignupInput) {
     setServerError(null);
@@ -67,7 +75,7 @@ export function ChurchSignupForm({ rootDomain }: ChurchSignupFormProps) {
         label="Church address"
         htmlFor="slug"
         error={errors.slug?.message}
-        hint={slug ? `${slug}.${host}` : `Your members will use a subdomain of ${host}.`}
+        hint={addressPreview}
       >
         <input id="slug" autoCapitalize="none" disabled={isPending} className={fieldClassName} {...register("slug")} />
       </FormField>
