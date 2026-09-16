@@ -3,7 +3,9 @@ import { writeAuditLog } from "@/lib/services/audit.service";
 import { createClient } from "@/lib/supabase/server";
 import { emptyToNull, firstZodError, userSafeDatabaseError } from "@/lib/utils/forms";
 import { logServerError } from "@/lib/utils/log-server-error";
+import { normalizeGender } from "@/lib/validators/member.schema";
 import { profileSchema } from "@/lib/validators/profile.schema";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { MembershipStatus } from "@/types";
 
 import { LIST_PAGE_SIZE, listPageCount, listRange, parseListPage, searchPattern } from "@/lib/admin/list-page";
@@ -337,6 +339,42 @@ export async function updateMyProfile(input: unknown) {
   if (error) {
     logServerError("portal.profile", error);
     return { error: userSafeDatabaseError(error.message) };
+  }
+
+  const { data: member } = await supabase
+    .from("members")
+    .select("id")
+    .eq("profile_id", current.id)
+    .eq("organization_id", current.organizationId)
+    .maybeSingle();
+  const memberRow = member as { id: string } | null;
+  if (memberRow) {
+    const admin = createAdminClient();
+    const { error: memberError } = await admin
+      .from("members")
+      .update({
+        first_name: parsed.data.first_name,
+        last_name: parsed.data.last_name,
+        phone: emptyToNull(parsed.data.phone),
+        date_of_birth: emptyToNull(parsed.data.date_of_birth),
+        gender: emptyToNull(normalizeGender(parsed.data.gender)),
+        address: emptyToNull(parsed.data.address),
+      } as never)
+      .eq("id", memberRow.id)
+      .eq("organization_id", current.organizationId)
+      .eq("profile_id", current.id);
+
+    if (memberError) {
+      logServerError("portal.memberProfile", memberError);
+      return { error: userSafeDatabaseError(memberError.message) };
+    }
+
+    await writeAuditLog({
+      action: "MEMBER_UPDATED",
+      entityType: "member",
+      entityId: memberRow.id,
+      metadata: { source: "portal" },
+    });
   }
 
   return { ok: true as const };

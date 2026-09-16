@@ -6,6 +6,8 @@ import {
   addDepartmentMember,
   createDepartment,
   deleteDepartment,
+  joinMyDepartment,
+  leaveMyDepartment,
   removeDepartmentMember,
   searchLeadersForDepartment,
   searchMembersForDepartment,
@@ -83,5 +85,26 @@ export async function removeDepartmentMemberAction(departmentId: string, members
   }
 
   revalidateDepartmentPaths(departmentId, result.memberId);
+  return { ok: true as const };
+}
+
+export async function joinMyDepartmentAction(input: unknown) {
+  const result = await joinMyDepartment(input);
+  if (result.error) {
+    return { error: result.error };
+  }
+
+  const values = input as { department_id?: string };
+  revalidateDepartmentPaths(values.department_id);
+  return { ok: true as const };
+}
+
+export async function leaveMyDepartmentAction(departmentId: string) {
+  const result = await leaveMyDepartment(departmentId);
+  if (result.error) {
+    return { error: result.error };
+  }
+
+  revalidateDepartmentPaths(departmentId);
   return { ok: true as const };
 }

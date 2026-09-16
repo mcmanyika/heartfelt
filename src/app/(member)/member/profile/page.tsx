@@ -1,47 +1,51 @@
+import { MemberDepartmentsEditor } from "@/components/member/member-departments-editor";
 import { ProfileForm } from "@/components/forms/profile-form";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { getMyDepartments } from "@/lib/services/department.service";
+import { getMyDepartments, listMyCampusDepartments } from "@/lib/services/department.service";
 import { listMyFamily } from "@/lib/services/family.service";
 import { getPortalContext } from "@/lib/services/portal.service";
-import { familyRelationshipLabel, formatDate, genderLabel, membershipStatusLabel } from "@/lib/utils/format";
+import { familyRelationshipLabel, formatDate, membershipStatusLabel } from "@/lib/utils/format";
+import { normalizeGender } from "@/lib/validators/member.schema";
 
 export default async function MemberProfilePage() {
   const { current, member, location } = await getPortalContext();
   const family = member ? await listMyFamily() : { links: [] };
   const departments = member ? await getMyDepartments() : { departments: [] };
+  const campusDepartments = member ? await listMyCampusDepartments() : { departments: [] };
 
   return (
     <>
       <PageHeader
         title="Profile"
-        description="Your login details. Membership fields are held by your campus office."
+        description="Update your personal details and departments. Campus, membership number, and status stay with your campus office."
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <h2 className="text-sm font-semibold text-navy">Personal information</h2>
+          <h2 className="text-sm font-semibold text-navy">Account</h2>
           <dl className="mt-4 grid gap-3 text-sm">
             <div>
               <dt className="text-gray-500">Email</dt>
               <dd className="text-navy">{current.email}</dd>
             </div>
             <div>
-              <dt className="text-gray-500">Phone on file</dt>
-              <dd className="text-navy">{member?.phone || current.profile.phone || "—"}</dd>
+              <dt className="text-gray-500">Membership number</dt>
+              <dd className="text-navy">{member?.membership_number || "—"}</dd>
             </div>
             <div>
-              <dt className="text-gray-500">Date of birth</dt>
-              <dd className="text-navy">{formatDate(member?.date_of_birth)}</dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">Gender</dt>
-              <dd className="text-navy">{genderLabel(member?.gender)}</dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">Address</dt>
-              <dd className="text-navy">{member?.address || "—"}</dd>
+              <dt className="text-gray-500">Membership status</dt>
+              <dd className="mt-1">
+                {member ? (
+                  <StatusBadge
+                    status={member.membership_status}
+                    label={membershipStatusLabel(member.membership_status)}
+                  />
+                ) : (
+                  <span className="text-gray-600">No membership record is linked to this login yet.</span>
+                )}
+              </dd>
             </div>
           </dl>
         </section>
@@ -65,42 +69,22 @@ export default async function MemberProfilePage() {
               <dt className="text-gray-500">Date joined</dt>
               <dd className="text-navy">{formatDate(member?.date_joined)}</dd>
             </div>
-            <div>
-              <dt className="text-gray-500">Departments</dt>
-              <dd className="text-navy">
-                {departments.departments.length === 0
-                  ? "—"
-                  : departments.departments.map((department) => department.name).join(", ")}
-              </dd>
-            </div>
           </dl>
         </section>
+      </div>
 
-        <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <h2 className="text-sm font-semibold text-navy">Membership status</h2>
+      {member ? (
+        <section className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <h2 className="text-sm font-semibold text-navy">Departments</h2>
+          <p className="mt-2 text-sm text-gray-600">Join or leave ministry teams at your campus.</p>
           <div className="mt-4">
-            {member ? (
-              <StatusBadge
-                status={member.membership_status}
-                label={membershipStatusLabel(member.membership_status)}
-              />
-            ) : (
-              <p className="text-sm text-gray-600">No membership record is linked to this login yet.</p>
-            )}
-            {member ? (
-              <p className="mt-3 text-sm text-gray-600">{member.membership_number}</p>
-            ) : null}
+            <MemberDepartmentsEditor
+              current={departments.departments}
+              available={campusDepartments.departments}
+            />
           </div>
         </section>
-
-        <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <h2 className="text-sm font-semibold text-navy">Account information</h2>
-          <p className="mt-4 text-sm leading-6 text-gray-600">
-            You can update the name and phone on your login. Membership number, campus, and
-            membership status are managed by church staff.
-          </p>
-        </section>
-      </div>
+      ) : null}
 
       <section className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-navy">Family</h2>
@@ -127,12 +111,16 @@ export default async function MemberProfilePage() {
       </section>
 
       <div className="mt-6">
-        <h2 className="mb-3 text-sm font-semibold text-navy">Update login profile</h2>
+        <h2 className="mb-3 text-sm font-semibold text-navy">Update profile</h2>
         <ProfileForm
+          canEditMembership={Boolean(member)}
           defaultValues={{
             first_name: current.profile.first_name,
             last_name: current.profile.last_name,
-            phone: current.profile.phone ?? "",
+            phone: member?.phone ?? current.profile.phone ?? "",
+            date_of_birth: member?.date_of_birth ?? "",
+            gender: normalizeGender(member?.gender),
+            address: member?.address ?? "",
           }}
         />
       </div>

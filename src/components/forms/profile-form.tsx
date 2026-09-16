@@ -5,13 +5,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormField, fieldClassName } from "@/components/ui/form-field";
 import { updateMyProfileAction } from "@/lib/services/portal.actions";
+import { GENDERS } from "@/lib/validators/member.schema";
 import { profileSchema, type ProfileInput } from "@/lib/validators/profile.schema";
 
 type ProfileFormProps = {
   defaultValues: ProfileInput;
+  canEditMembership: boolean;
 };
 
-export function ProfileForm({ defaultValues }: ProfileFormProps) {
+export function ProfileForm({ defaultValues, canEditMembership }: ProfileFormProps) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -61,14 +63,35 @@ export function ProfileForm({ defaultValues }: ProfileFormProps) {
         <FormField label="Last name" htmlFor="last_name" error={errors.last_name?.message}>
           <input id="last_name" className={fieldClassName} disabled={isPending} {...register("last_name")} />
         </FormField>
-        <FormField
-          label="Phone"
-          htmlFor="phone"
-          hint="Campus staff still hold your official membership contact details."
-          error={errors.phone?.message}
-        >
+        <FormField label="Phone" htmlFor="phone" error={errors.phone?.message}>
           <input id="phone" className={fieldClassName} disabled={isPending} {...register("phone")} />
         </FormField>
+        {canEditMembership ? (
+          <>
+            <FormField label="Date of birth" htmlFor="date_of_birth" error={errors.date_of_birth?.message}>
+              <input
+                id="date_of_birth"
+                type="date"
+                className={fieldClassName}
+                disabled={isPending}
+                {...register("date_of_birth")}
+              />
+            </FormField>
+            <FormField label="Gender" htmlFor="gender" error={errors.gender?.message}>
+              <select id="gender" className={fieldClassName} disabled={isPending} {...register("gender")}>
+                <option value="">Select gender</option>
+                {GENDERS.map((gender) => (
+                  <option key={gender} value={gender}>
+                    {gender}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            <FormField label="Address" htmlFor="address" error={errors.address?.message}>
+              <input id="address" className={fieldClassName} disabled={isPending} {...register("address")} />
+            </FormField>
+          </>
+        ) : null}
       </div>
 
       <button

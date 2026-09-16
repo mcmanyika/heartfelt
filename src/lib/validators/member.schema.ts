@@ -26,7 +26,7 @@ export function normalizeGender(value?: string | null) {
   return GENDERS.includes(value as (typeof GENDERS)[number]) ? value : "";
 }
 
-const optionalDate = z
+export const optionalDate = z
   .string()
   .trim()
   .optional()

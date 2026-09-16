@@ -14,6 +14,8 @@ export async function updateMyProfileAction(input: unknown) {
   }
 
   revalidatePath("/member");
+  revalidatePath("/member/profile");
+  revalidatePath("/member/dashboard");
   return { ok: true as const };
 }
 
