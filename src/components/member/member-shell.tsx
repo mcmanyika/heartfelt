@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Briefcase,
   CalendarDays,
   CircleDollarSign,
   LayoutDashboard,
   Megaphone,
   UserRound,
+  UsersRound,
 } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { isMemberNavActive, MEMBER_NAV_ITEMS } from "@/lib/auth/member-nav";
@@ -16,6 +18,8 @@ import { cn } from "@/lib/utils/cn";
 const ICONS = {
   dashboard: LayoutDashboard,
   profile: UserRound,
+  cellGroup: UsersRound,
+  departments: Briefcase,
   giving: CircleDollarSign,
   events: CalendarDays,
   announcements: Megaphone,
@@ -75,7 +79,7 @@ export function MemberShell({ firstName, organizationName, children }: MemberShe
         aria-label="Member"
         className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-card/95 backdrop-blur sm:hidden"
       >
-        <ul className="grid grid-cols-5">
+        <ul className="grid grid-cols-7">
           {MEMBER_NAV_ITEMS.map((item) => {
             const Icon = ICONS[item.icon];
             const active = isMemberNavActive(item.href, pathname);

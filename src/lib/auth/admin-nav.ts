@@ -8,6 +8,8 @@ export type AdminNavItem = {
     | "dashboard"
     | "locations"
     | "members"
+    | "cellGroups"
+    | "departments"
     | "registrations"
     | "giving"
     | "terminals"
@@ -38,6 +40,18 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     href: "/admin/members",
     label: "Members",
     icon: "members",
+    roles: ["SUPER_ADMIN", "LOCATION_ADMIN"],
+  },
+  {
+    href: "/admin/cell-groups",
+    label: "Cell groups",
+    icon: "cellGroups",
+    roles: ["SUPER_ADMIN", "LOCATION_ADMIN"],
+  },
+  {
+    href: "/admin/departments",
+    label: "Departments",
+    icon: "departments",
     roles: ["SUPER_ADMIN", "LOCATION_ADMIN"],
   },
   {
@@ -113,6 +127,8 @@ export const ADMIN_PAGE_ROLES = {
   dashboard: STAFF_ROLES,
   locations: ["SUPER_ADMIN"] as const,
   members: ["SUPER_ADMIN", "LOCATION_ADMIN"] as const,
+  cellGroups: ["SUPER_ADMIN", "LOCATION_ADMIN"] as const,
+  departments: ["SUPER_ADMIN", "LOCATION_ADMIN"] as const,
   registrations: ["SUPER_ADMIN", "LOCATION_ADMIN"] as const,
   giving: STAFF_ROLES,
   terminals: STAFF_ROLES,

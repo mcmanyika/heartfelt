@@ -10,6 +10,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { listMemberFamily } from "@/lib/services/family.service";
+import { getMemberCellGroup } from "@/lib/services/cell-group.service";
+import { getMemberDepartments } from "@/lib/services/department.service";
 import {
   getMember,
   getMemberGiving,
@@ -39,11 +41,13 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
 
   const member = result.member;
   const name = displayMemberName(member);
-  const [giving, events, destinations, family] = await Promise.all([
+  const [giving, events, destinations, family, cellGroup, departments] = await Promise.all([
     getMemberGiving(member.id),
     getMemberUpcomingEvents(member),
     listTransferDestinations(member.location_id),
     listMemberFamily(member.id),
+    getMemberCellGroup(member.id),
+    getMemberDepartments(member.id),
   ]);
 
   return (
@@ -113,6 +117,36 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
             <div>
               <dt className="text-gray-500">Date joined</dt>
               <dd className="text-navy">{formatDate(member.date_joined)}</dd>
+            </div>
+            <div>
+              <dt className="text-gray-500">Cell group</dt>
+              <dd className="text-navy">
+                {cellGroup.group ? (
+                  <Link href={`/admin/cell-groups/${cellGroup.group.id}`} className="hover:underline">
+                    {cellGroup.group.name}
+                  </Link>
+                ) : (
+                  "—"
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-gray-500">Departments</dt>
+              <dd className="text-navy">
+                {departments.departments.length === 0 ? (
+                  "—"
+                ) : (
+                  <ul className="space-y-1">
+                    {departments.departments.map((department) => (
+                      <li key={department.id}>
+                        <Link href={`/admin/departments/${department.id}`} className="hover:underline">
+                          {department.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </dd>
             </div>
           </dl>
         </section>

@@ -2,6 +2,7 @@ import { ProfileForm } from "@/components/forms/profile-form";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { getMyDepartments } from "@/lib/services/department.service";
 import { listMyFamily } from "@/lib/services/family.service";
 import { getPortalContext } from "@/lib/services/portal.service";
 import { familyRelationshipLabel, formatDate, membershipStatusLabel } from "@/lib/utils/format";
@@ -9,6 +10,7 @@ import { familyRelationshipLabel, formatDate, membershipStatusLabel } from "@/li
 export default async function MemberProfilePage() {
   const { current, member, location } = await getPortalContext();
   const family = member ? await listMyFamily() : { links: [] };
+  const departments = member ? await getMyDepartments() : { departments: [] };
 
   return (
     <>
@@ -62,6 +64,14 @@ export default async function MemberProfilePage() {
             <div>
               <dt className="text-gray-500">Date joined</dt>
               <dd className="text-navy">{formatDate(member?.date_joined)}</dd>
+            </div>
+            <div>
+              <dt className="text-gray-500">Departments</dt>
+              <dd className="text-navy">
+                {departments.departments.length === 0
+                  ? "—"
+                  : departments.departments.map((department) => department.name).join(", ")}
+              </dd>
             </div>
           </dl>
         </section>

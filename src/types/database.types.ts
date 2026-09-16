@@ -132,6 +132,338 @@ export type Database = {
           },
         ];
       };
+      cell_group_attendance: {
+        Row: {
+          id: string;
+          meeting_id: string;
+          member_id: string;
+          status: Database["public"]["Enums"]["cell_group_attendance_status"];
+        };
+        Insert: {
+          id?: string;
+          meeting_id: string;
+          member_id: string;
+          status?: Database["public"]["Enums"]["cell_group_attendance_status"];
+        };
+        Update: {
+          id?: string;
+          meeting_id?: string;
+          member_id?: string;
+          status?: Database["public"]["Enums"]["cell_group_attendance_status"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "cell_group_attendance_meeting_id_fkey";
+            columns: ["meeting_id"];
+            isOneToOne: false;
+            referencedRelation: "cell_group_meetings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cell_group_attendance_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      cell_group_meetings: {
+        Row: {
+          cell_group_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          meeting_date: string;
+          notes: string | null;
+          organization_id: string;
+        };
+        Insert: {
+          cell_group_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          meeting_date: string;
+          notes?: string | null;
+          organization_id: string;
+        };
+        Update: {
+          cell_group_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          meeting_date?: string;
+          notes?: string | null;
+          organization_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "cell_group_meetings_cell_group_id_fkey";
+            columns: ["cell_group_id"];
+            isOneToOne: false;
+            referencedRelation: "cell_groups";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cell_group_meetings_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cell_group_meetings_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      cell_group_members: {
+        Row: {
+          cell_group_id: string;
+          created_at: string;
+          id: string;
+          joined_at: string;
+          left_at: string | null;
+          member_id: string;
+          role: Database["public"]["Enums"]["cell_group_member_role"];
+        };
+        Insert: {
+          cell_group_id: string;
+          created_at?: string;
+          id?: string;
+          joined_at?: string;
+          left_at?: string | null;
+          member_id: string;
+          role?: Database["public"]["Enums"]["cell_group_member_role"];
+        };
+        Update: {
+          cell_group_id?: string;
+          created_at?: string;
+          id?: string;
+          joined_at?: string;
+          left_at?: string | null;
+          member_id?: string;
+          role?: Database["public"]["Enums"]["cell_group_member_role"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "cell_group_members_cell_group_id_fkey";
+            columns: ["cell_group_id"];
+            isOneToOne: false;
+            referencedRelation: "cell_groups";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cell_group_members_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      cell_groups: {
+        Row: {
+          code: string | null;
+          created_at: string;
+          created_by: string | null;
+          description: string | null;
+          id: string;
+          leader_member_id: string | null;
+          location_id: string;
+          meeting_time: string | null;
+          meeting_weekday: number | null;
+          name: string;
+          organization_id: string;
+          status: Database["public"]["Enums"]["cell_group_status"];
+          updated_at: string;
+          venue: string | null;
+        };
+        Insert: {
+          code?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          description?: string | null;
+          id?: string;
+          leader_member_id?: string | null;
+          location_id: string;
+          meeting_time?: string | null;
+          meeting_weekday?: number | null;
+          name: string;
+          organization_id: string;
+          status?: Database["public"]["Enums"]["cell_group_status"];
+          updated_at?: string;
+          venue?: string | null;
+        };
+        Update: {
+          code?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          description?: string | null;
+          id?: string;
+          leader_member_id?: string | null;
+          location_id?: string;
+          meeting_time?: string | null;
+          meeting_weekday?: number | null;
+          name?: string;
+          organization_id?: string;
+          status?: Database["public"]["Enums"]["cell_group_status"];
+          updated_at?: string;
+          venue?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "cell_groups_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cell_groups_leader_member_id_fkey";
+            columns: ["leader_member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cell_groups_location_id_fkey";
+            columns: ["location_id"];
+            isOneToOne: false;
+            referencedRelation: "locations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cell_groups_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      department_members: {
+        Row: {
+          created_at: string;
+          department_id: string;
+          id: string;
+          joined_at: string;
+          left_at: string | null;
+          member_id: string;
+          role: Database["public"]["Enums"]["department_member_role"];
+        };
+        Insert: {
+          created_at?: string;
+          department_id: string;
+          id?: string;
+          joined_at?: string;
+          left_at?: string | null;
+          member_id: string;
+          role?: Database["public"]["Enums"]["department_member_role"];
+        };
+        Update: {
+          created_at?: string;
+          department_id?: string;
+          id?: string;
+          joined_at?: string;
+          left_at?: string | null;
+          member_id?: string;
+          role?: Database["public"]["Enums"]["department_member_role"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "department_members_department_id_fkey";
+            columns: ["department_id"];
+            isOneToOne: false;
+            referencedRelation: "departments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "department_members_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      departments: {
+        Row: {
+          code: string | null;
+          created_at: string;
+          created_by: string | null;
+          description: string | null;
+          id: string;
+          leader_member_id: string | null;
+          location_id: string;
+          name: string;
+          organization_id: string;
+          status: Database["public"]["Enums"]["department_status"];
+          updated_at: string;
+          venue: string | null;
+        };
+        Insert: {
+          code?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          description?: string | null;
+          id?: string;
+          leader_member_id?: string | null;
+          location_id: string;
+          name: string;
+          organization_id: string;
+          status?: Database["public"]["Enums"]["department_status"];
+          updated_at?: string;
+          venue?: string | null;
+        };
+        Update: {
+          code?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          description?: string | null;
+          id?: string;
+          leader_member_id?: string | null;
+          location_id?: string;
+          name?: string;
+          organization_id?: string;
+          status?: Database["public"]["Enums"]["department_status"];
+          updated_at?: string;
+          venue?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "departments_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "departments_leader_member_id_fkey";
+            columns: ["leader_member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "departments_location_id_fkey";
+            columns: ["location_id"];
+            isOneToOne: false;
+            referencedRelation: "locations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "departments_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       event_registrations: {
         Row: {
           event_id: string;
@@ -836,6 +1168,14 @@ export type Database = {
         Args: { location_uuid: string };
         Returns: boolean;
       };
+      cell_group_leader_label: {
+        Args: { p_group_id: string };
+        Returns: string;
+      };
+      department_leader_label: {
+        Args: { p_department_id: string };
+        Returns: string;
+      };
       current_member_id: {
         Args: Record<PropertyKey, never>;
         Returns: string;
@@ -885,8 +1225,24 @@ export type Database = {
         Args: { role_name: string };
         Returns: boolean;
       };
+      is_active_cell_group_member: {
+        Args: { p_group_id: string };
+        Returns: boolean;
+      };
+      is_active_department_member: {
+        Args: { p_department_id: string };
+        Returns: boolean;
+      };
       is_super_admin: {
         Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
+      staff_can_manage_cell_group: {
+        Args: { p_group_id: string };
+        Returns: boolean;
+      };
+      staff_can_manage_department: {
+        Args: { p_department_id: string };
         Returns: boolean;
       };
       register_for_event: {
@@ -913,6 +1269,11 @@ export type Database = {
       };
     };
     Enums: {
+      cell_group_attendance_status: "PRESENT" | "ABSENT" | "EXCUSED";
+      cell_group_member_role: "LEADER" | "MEMBER";
+      cell_group_status: "ACTIVE" | "INACTIVE";
+      department_member_role: "LEADER" | "MEMBER";
+      department_status: "ACTIVE" | "INACTIVE";
       event_registration_status: "REGISTERED" | "ATTENDED" | "CANCELLED";
       family_relationship:
         | "SPOUSE"

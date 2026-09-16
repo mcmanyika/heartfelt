@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  Briefcase,
   Building2,
   CalendarDays,
   CircleDollarSign,
@@ -15,6 +16,7 @@ import {
   UserCog,
   UserPlus,
   Users,
+  UsersRound,
 } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { isAdminNavActive, type AdminNavItem } from "@/lib/auth/admin-nav";
@@ -24,6 +26,8 @@ const ICONS = {
   dashboard: LayoutDashboard,
   locations: Building2,
   members: Users,
+  cellGroups: UsersRound,
+  departments: Briefcase,
   registrations: UserPlus,
   giving: CircleDollarSign,
   terminals: MonitorSmartphone,

@@ -221,3 +221,71 @@ export function membershipStatusLabel(status: string) {
       return status;
   }
 }
+
+export const WEEKDAY_LABELS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+
+export function weekdayLabel(weekday: number | null | undefined) {
+  if (weekday == null || weekday < 0 || weekday > 6) {
+    return "—";
+  }
+  return WEEKDAY_LABELS[weekday];
+}
+
+export function formatTimeOfDay(value: string | null | undefined) {
+  if (!value) {
+    return "—";
+  }
+  return value.slice(0, 5);
+}
+
+export function formatCellGroupMeeting(
+  weekday: number | null | undefined,
+  time: string | null | undefined,
+) {
+  if (weekday == null && !time) {
+    return "Not set";
+  }
+  if (weekday == null) {
+    return formatTimeOfDay(time);
+  }
+  if (!time) {
+    return weekdayLabel(weekday);
+  }
+  return `${weekdayLabel(weekday)} · ${formatTimeOfDay(time)}`;
+}
+
+export function cellGroupMemberRoleLabel(role: string) {
+  switch (role) {
+    case "LEADER":
+      return "Leader";
+    case "MEMBER":
+      return "Member";
+    default:
+      return role.replace(/_/g, " ");
+  }
+}
+
+export function departmentMemberRoleLabel(role: string) {
+  return cellGroupMemberRoleLabel(role);
+}
+
+export function attendanceStatusLabel(status: string) {
+  switch (status) {
+    case "PRESENT":
+      return "Present";
+    case "ABSENT":
+      return "Absent";
+    case "EXCUSED":
+      return "Excused";
+    default:
+      return status.replace(/_/g, " ");
+  }
+}

@@ -72,5 +72,36 @@ export function userSafeDatabaseError(message: string) {
     return "This event has already started.";
   }
 
+  if (normalized.includes("cell_groups_location_name")) {
+    return "A cell group with this name already exists at that campus.";
+  }
+
+  if (normalized.includes("cell_groups_location_code")) {
+    return "A cell group with this code already exists at that campus.";
+  }
+
+  if (normalized.includes("cell_group_members_one_active")) {
+    return "That member is already in a cell group.";
+  }
+
+  if (normalized.includes("cell_group_meetings") && normalized.includes("unique")) {
+    return "Attendance for that date is already recorded.";
+  }
+
+  if (normalized.includes("departments_location_name")) {
+    return "A department with this name already exists at that campus.";
+  }
+
+  if (normalized.includes("departments_location_code")) {
+    return "A department with this code already exists at that campus.";
+  }
+
+  if (
+    normalized.includes("department_members_department_id_member_id") ||
+    normalized.includes("department_members_one_active")
+  ) {
+    return "That member is already in this department.";
+  }
+
   return "Unable to save your changes. Please try again.";
 }
