@@ -9,7 +9,7 @@ type ReportTableProps = {
 
 export function ReportTable({ title, empty, headers, rows }: ReportTableProps) {
   return (
-    <section>
+    <section className="min-w-0">
       <h2 className="mb-3 text-sm font-semibold text-navy">{title}</h2>
       <DataTable isEmpty={rows.length === 0} emptyTitle={empty}>
         <DataTableHead>

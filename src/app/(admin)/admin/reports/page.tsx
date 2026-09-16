@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { ReportTable } from "@/components/admin/report-table";
-import { DashboardCharts } from "@/components/charts/dashboard-charts";
+import { GivingTrendChart } from "@/components/charts/dashboard-charts";
 import { fieldClassName } from "@/components/ui/form-field";
 import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { getAdminLocationSelection } from "@/lib/auth/admin-location";
 import { requireRole } from "@/lib/auth/require-role";
 import { STAFF_ROLES } from "@/lib/auth/types";
 import { parseDashboardRange } from "@/lib/services/dashboard.service";
 import { getStaffReport } from "@/lib/services/report.service";
 import {
+  formatAmount,
   formatDate,
-  formatDateTime,
   formatTotals,
   formatTotalsRecord,
   paymentMethodLabel,
@@ -18,20 +20,20 @@ import {
 
 type ReportsPageProps = {
   searchParams: Promise<{
-    location?: string;
     from?: string;
     to?: string;
   }>;
 };
 
 export default async function AdminReportsPage({ searchParams }: ReportsPageProps) {
-  await requireRole(STAFF_ROLES);
+  const current = await requireRole(STAFF_ROLES);
   const params = await searchParams;
   const range = parseDashboardRange(params.from, params.to);
+  const selection = await getAdminLocationSelection(current);
   const report = await getStaffReport({
     from: range.from,
     to: range.to,
-    locationId: params.location,
+    locationId: selection.locationId ?? undefined,
   });
   const currencies = report.summary.totals.map((total) => total.currency);
   const givingOverTime = Object.keys(report.summary.byMonth)
@@ -40,14 +42,33 @@ export default async function AdminReportsPage({ searchParams }: ReportsPageProp
       month,
       ...report.summary.byMonth[month],
     }));
-  const transactionsHref = `/admin/transactions?from=${range.from}&to=${range.to}${
-    report.locationId ? `&location=${report.locationId}` : ""
-  }`;
+  const locationQuery = report.locationId ? `&location=${report.locationId}` : "";
+  const transactionsHref = `/admin/transactions?from=${range.from}&to=${range.to}${locationQuery}`;
+  const scope = selection.location
+    ? `${selection.location.name} (${selection.location.code})`
+    : "All campuses";
+  const failedCount = Math.max(0, report.summary.totalCount - report.summary.successfulCount);
+  const memberCount = report.membersByLocation.reduce((sum, row) => sum + row.members, 0);
+  const showCampusStat = !report.locationId;
+  const showCampusBreakdown = showCampusStat && report.summary.byLocation.length > 1;
+  const givingValue =
+    report.summary.totals.length === 0 ? (
+      "—"
+    ) : report.summary.totals.length === 1 ? (
+      formatAmount(report.summary.totals[0].amount, report.summary.totals[0].currency)
+    ) : (
+      <span className="flex flex-col gap-1 text-lg leading-tight">
+        {report.summary.totals.map((total) => (
+          <span key={total.currency}>{formatAmount(total.amount, total.currency)}</span>
+        ))}
+      </span>
+    );
 
   return (
     <>
       <PageHeader
         title="Reports"
+        description={`${scope} · ${formatDate(range.from)} – ${formatDate(range.to)}`}
         actions={
           <Link href={transactionsHref} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-navy">
             Open transactions
@@ -55,80 +76,73 @@ export default async function AdminReportsPage({ searchParams }: ReportsPageProp
         }
       />
 
-      <form className="mb-5 grid gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm md:grid-cols-4">
-        {report.current.isSuperAdmin ? (
-          <select
-            name="location"
-            defaultValue={params.location ?? report.locationId ?? ""}
-            className={fieldClassName}
-            aria-label="Compare by location"
-          >
-            <option value="">All locations</option>
-            {report.current.accessibleLocations.map((location) => (
-              <option key={location.id} value={location.id}>
-                {location.name} ({location.code})
-              </option>
-            ))}
-          </select>
-        ) : null}
-        <input
-          type="date"
-          name="from"
-          defaultValue={range.from}
-          className={fieldClassName}
-          aria-label="From date"
-        />
-        <input type="date" name="to" defaultValue={range.to} className={fieldClassName} aria-label="To date" />
-        <div className={report.current.isSuperAdmin ? "" : "md:col-span-2"}>
-          <button type="submit" className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white">
-            Apply filters
-          </button>
-        </div>
+      <form method="get" className="mb-6 flex flex-wrap items-end gap-3">
+        <label className="text-sm font-medium text-navy">
+          From
+          <input
+            type="date"
+            name="from"
+            defaultValue={range.from}
+            className={`${fieldClassName} mt-1.5`}
+          />
+        </label>
+        <label className="text-sm font-medium text-navy">
+          To
+          <input type="date" name="to" defaultValue={range.to} className={`${fieldClassName} mt-1.5`} />
+        </label>
+        <button type="submit" className="rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white">
+          Apply
+        </button>
       </form>
 
-      <section className="mb-6 grid gap-4 sm:grid-cols-3">
-        <ReportStat label="Successful transactions" value={String(report.summary.successfulCount)} />
-        <ReportStat label="All recorded" value={String(report.summary.totalCount)} />
-        <ReportStat label="Totals" value={formatTotals(report.summary.totals)} />
+      <section
+        aria-label="Summary"
+        className={`grid gap-4 sm:grid-cols-2 ${showCampusStat ? "xl:grid-cols-5" : "xl:grid-cols-4"}`}
+      >
+        <StatCard label="Giving" value={givingValue} />
+        <StatCard
+          label="Successful gifts"
+          value={String(report.summary.successfulCount)}
+          hint={failedCount ? `${failedCount} unsuccessful` : "All gifts succeeded"}
+        />
+        <StatCard label="Members" value={String(memberCount)} hint={scope} />
+        {showCampusStat ? (
+          <StatCard
+            label="Campuses"
+            value={String(report.summary.byLocation.length)}
+            hint="With giving in this range"
+          />
+        ) : null}
+        <StatCard
+          label="Active terminals"
+          value={String(report.terminalActivity.filter((row) => row.status === "ONLINE").length)}
+          hint={`${report.terminalActivity.length} registered`}
+        />
       </section>
 
-      <DashboardCharts
-        givingOverTime={givingOverTime}
-        currencies={currencies}
-        byCategory={report.summary.byCategory.map((row) => ({ name: row.name, count: row.count }))}
-        byMethod={report.byMethod.map((row) => ({
-          name: paymentMethodLabel(row.label),
-          value: row.count,
-        }))}
-        membersByLocation={report.membersByLocation.map((row) => ({
-          name: `${row.name} (${row.code})`,
-          members: row.members,
-        }))}
-      />
+      <section className="mt-6" aria-label="Trend">
+        <GivingTrendChart givingOverTime={givingOverTime} currencies={currencies} />
+      </section>
 
-      <div className="mt-8 space-y-8">
+      <section className="mt-8 grid gap-6 xl:grid-cols-2" aria-label="Breakdowns">
+        {showCampusBreakdown ? (
+          <ReportTable
+            title="By campus"
+            empty="No giving in this range"
+            headers={["Campus", "Gifts", "Total"]}
+            rows={report.summary.byLocation.map((row) => [
+              `${row.name} (${row.code})`,
+              String(row.count),
+              formatTotals(
+                Object.entries(row.totals).map(([currency, amount]) => ({ currency, amount })),
+              ),
+            ])}
+          />
+        ) : null}
         <ReportTable
-          title="Members by location"
-          empty="No members in this scope"
-          headers={["Location", "Members"]}
-          rows={report.membersByLocation.map((row) => [`${row.name} (${row.code})`, String(row.members)])}
-        />
-        <ReportTable
-          title="Giving by location"
+          title="By category"
           empty="No giving in this range"
-          headers={["Location", "Transactions", "Totals"]}
-          rows={report.summary.byLocation.map((row) => [
-            `${row.name} (${row.code})`,
-            String(row.count),
-            formatTotals(
-              Object.entries(row.totals).map(([currency, amount]) => ({ currency, amount })),
-            ),
-          ])}
-        />
-        <ReportTable
-          title="Giving by category"
-          empty="No giving in this range"
-          headers={["Category", "Transactions", "Totals"]}
+          headers={["Category", "Gifts", "Total"]}
           rows={report.summary.byCategory.map((row) => [
             row.name,
             String(row.count),
@@ -138,9 +152,9 @@ export default async function AdminReportsPage({ searchParams }: ReportsPageProp
           ])}
         />
         <ReportTable
-          title="Giving by payment method"
+          title="By payment method"
           empty="No giving in this range"
-          headers={["Payment method", "Transactions", "Totals"]}
+          headers={["Method", "Gifts", "Total"]}
           rows={report.byMethod.map((row) => [
             paymentMethodLabel(row.label),
             String(row.count),
@@ -148,56 +162,29 @@ export default async function AdminReportsPage({ searchParams }: ReportsPageProp
           ])}
         />
         <ReportTable
-          title="Giving by currency"
-          empty="No giving in this range"
-          headers={["Currency", "Transactions", "Totals"]}
-          rows={report.byCurrency.map((row) => [row.label, String(row.count), formatTotalsRecord(row.totals)])}
-        />
-        <ReportTable
-          title="Transactions by date"
-          empty="No giving in this range"
-          headers={["Date", "Transactions", "Totals"]}
-          rows={report.byDate.map((row) => [formatDate(row.label), String(row.count), formatTotalsRecord(row.totals)])}
-        />
-        <ReportTable
-          title="Giving by month"
-          empty="No giving in this range"
-          headers={["Month", "Totals"]}
-          rows={Object.keys(report.summary.byMonth)
-            .sort()
-            .map((month) => [
-              month,
-              formatTotals(
-                Object.entries(report.summary.byMonth[month]).map(([currency, amount]) => ({
-                  currency,
-                  amount,
-                })),
-              ),
-            ])}
-        />
-        <ReportTable
-          title="Terminal activity"
+          title="Terminals"
           empty="No terminals in this scope"
-          headers={["Terminal", "Campus", "Status", "Last seen", "Transactions", "Totals"]}
-          rows={report.terminalActivity.map((row) => [
-            `${row.device_name} (${row.terminal_code})`,
-            row.location_name,
-            terminalStatusLabel(row.status),
-            formatDateTime(row.last_seen_at),
-            String(row.transaction_count),
-            formatTotalsRecord(row.totals),
-          ])}
+          headers={report.locationId ? ["Terminal", "Status", "Gifts"] : ["Terminal", "Campus", "Status", "Gifts"]}
+          rows={report.terminalActivity.map((row) =>
+            report.locationId
+              ? [
+                  row.device_name,
+                  terminalStatusLabel(row.status),
+                  row.transaction_count
+                    ? `${row.transaction_count} · ${formatTotalsRecord(row.totals)}`
+                    : "—",
+                ]
+              : [
+                  row.device_name,
+                  row.location_name,
+                  terminalStatusLabel(row.status),
+                  row.transaction_count
+                    ? `${row.transaction_count} · ${formatTotalsRecord(row.totals)}`
+                    : "—",
+                ],
+          )}
         />
-      </div>
+      </section>
     </>
-  );
-}
-
-function ReportStat({ label, value }: { label: string; value: string }) {
-  return (
-    <article className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <p className="text-xs font-medium tracking-wide text-gray-500 uppercase">{label}</p>
-      <p className="mt-3 text-xl font-semibold tracking-tight text-navy">{value}</p>
-    </article>
   );
 }

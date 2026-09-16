@@ -25,6 +25,38 @@ type DashboardChartsProps = {
   membersByLocation: Array<{ name: string; members: number }>;
 };
 
+export function GivingTrendChart({
+  givingOverTime,
+  currencies,
+}: Pick<DashboardChartsProps, "givingOverTime" | "currencies">) {
+  return (
+    <ChartCard title="Giving over time">
+      {givingOverTime.length === 0 ? (
+        <EmptyChart />
+      ) : (
+        <ResponsiveContainer width="100%" height={260}>
+          <LineChart data={givingOverTime}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+            <YAxis tick={{ fontSize: 12 }} />
+            <Tooltip />
+            {currencies.map((currency, index) => (
+              <Line
+                key={currency}
+                type="monotone"
+                dataKey={currency}
+                stroke={COLORS[index % COLORS.length]}
+                strokeWidth={2}
+                dot={false}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      )}
+    </ChartCard>
+  );
+}
+
 export function DashboardCharts({
   givingOverTime,
   currencies,
@@ -34,30 +66,7 @@ export function DashboardCharts({
 }: DashboardChartsProps) {
   return (
     <section aria-label="Charts" className="mt-6 grid gap-4 lg:grid-cols-2">
-      <ChartCard title="Giving over time">
-        {givingOverTime.length === 0 ? (
-          <EmptyChart />
-        ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={givingOverTime}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip />
-              {currencies.map((currency, index) => (
-                <Line
-                  key={currency}
-                  type="monotone"
-                  dataKey={currency}
-                  stroke={COLORS[index % COLORS.length]}
-                  strokeWidth={2}
-                  dot={false}
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        )}
-      </ChartCard>
+      <GivingTrendChart givingOverTime={givingOverTime} currencies={currencies} />
 
       <ChartCard title="Giving by category">
         {byCategory.length === 0 ? (
