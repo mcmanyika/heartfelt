@@ -23,8 +23,33 @@ export const RESERVED_TENANT_SLUGS = new Set([
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$/;
 const SHORT_CODE_PATTERN = /^[A-Z0-9]{2,8}$/;
 
+export function normalizeRootDomain(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  let candidate = trimmed.split(",")[0]?.trim() ?? "";
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(candidate)) {
+    try {
+      candidate = new URL(candidate).host;
+    } catch {
+      candidate = candidate.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");
+    }
+  }
+
+  candidate = candidate.replace(/\/+$/, "").split("/")[0]?.trim() ?? "";
+  const { hostname, port } = splitHostPort(candidate);
+  if (!hostname) {
+    return "";
+  }
+
+  const apex = hostname.replace(/^www\./, "");
+  return port ? `${apex}:${port}` : apex;
+}
+
 export function isLoopbackHost(value: string) {
-  const { hostname } = splitHostPort(value);
+  const { hostname } = splitHostPort(normalizeRootDomain(value) || value);
   return (
     hostname === "localhost" ||
     hostname === "127.0.0.1" ||
@@ -34,7 +59,10 @@ export function isLoopbackHost(value: string) {
 }
 
 export function getConfiguredRootDomain() {
-  return process.env.ROOT_DOMAIN?.trim() || process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || "";
+  return (
+    normalizeRootDomain(process.env.ROOT_DOMAIN ?? "") ||
+    normalizeRootDomain(process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "")
+  );
 }
 
 export function getRootDomain() {
@@ -47,10 +75,9 @@ export function rootDomainForHost(hostHeader: string) {
     return configured;
   }
 
-  const { hostname, port } = splitHostPort(hostHeader);
-  if (hostname && !isLoopbackHost(hostname)) {
-    const apex = hostname.replace(/^www\./, "");
-    return port ? `${apex}:${port}` : apex;
+  const fromRequest = normalizeRootDomain(hostHeader);
+  if (fromRequest && !isLoopbackHost(fromRequest)) {
+    return fromRequest;
   }
 
   return configured || "localhost:3000";
@@ -130,7 +157,8 @@ export function originProtocol() {
 }
 
 export function originForRoot(rootDomain: string, forwardedProto?: string | null) {
-  return `${originProtocolFor(rootDomain, forwardedProto)}://${rootDomain}`;
+  const root = normalizeRootDomain(rootDomain) || rootDomain;
+  return `${originProtocolFor(root, forwardedProto)}://${root}`;
 }
 
 export function apexOrigin() {
@@ -138,9 +166,10 @@ export function apexOrigin() {
 }
 
 export function tenantOriginForRoot(slug: string, rootDomain: string, forwardedProto?: string | null) {
-  const root = splitHostPort(rootDomain);
+  const normalized = normalizeRootDomain(rootDomain) || rootDomain;
+  const root = splitHostPort(normalized);
   const host = root.port ? `${slug}.${root.hostname}:${root.port}` : `${slug}.${root.hostname}`;
-  return `${originProtocolFor(rootDomain, forwardedProto)}://${host}`;
+  return `${originProtocolFor(normalized, forwardedProto)}://${host}`;
 }
 
 export function tenantOrigin(slug: string) {

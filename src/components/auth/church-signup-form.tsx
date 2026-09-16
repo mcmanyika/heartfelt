@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { fieldClassName, FormField } from "@/components/ui/form-field";
 import { createChurchAction } from "@/lib/services/church-signup.actions";
+import { normalizeRootDomain } from "@/lib/tenant/config";
 import { churchSignupSchema, type ChurchSignupInput } from "@/lib/validators/church-signup.schema";
 
 type ChurchSignupFormProps = {
@@ -14,6 +15,7 @@ type ChurchSignupFormProps = {
 export function ChurchSignupForm({ rootDomain }: ChurchSignupFormProps) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const host = normalizeRootDomain(rootDomain) || rootDomain;
   const {
     register,
     handleSubmit,
@@ -65,7 +67,7 @@ export function ChurchSignupForm({ rootDomain }: ChurchSignupFormProps) {
         label="Church address"
         htmlFor="slug"
         error={errors.slug?.message}
-        hint={slug ? `${slug}.${rootDomain}` : `Your members will use a subdomain of ${rootDomain}.`}
+        hint={slug ? `${slug}.${host}` : `Your members will use a subdomain of ${host}.`}
       >
         <input id="slug" autoCapitalize="none" disabled={isPending} className={fieldClassName} {...register("slug")} />
       </FormField>
