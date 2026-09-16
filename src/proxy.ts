@@ -1,77 +1,23 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { TENANT_HEADER, getRootDomain, tenantSlugFromHost } from "@/lib/tenant/config";
 
-function isProtectedPath(pathname: string) {
-  return pathname.startsWith("/admin") || pathname.startsWith("/member");
-}
-
-function withCopiedCookies(from: NextResponse, to: NextResponse) {
-  from.cookies.getAll().forEach((cookie) => {
-    to.cookies.set(cookie);
-  });
-
-  return to;
-}
-
-/**
- * Refreshes the Supabase Auth session and sends anonymous users away from
- * protected prefixes. This is not authorization. Layouts and server actions
- * still verify role and location.
- */
-export async function proxy(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  });
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !anonKey) {
-    return supabaseResponse;
+export function proxy(request: NextRequest) {
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "";
+  const slug = tenantSlugFromHost(host, getRootDomain());
+  const requestHeaders = new Headers(request.headers);
+  if (slug) {
+    requestHeaders.set(TENANT_HEADER, slug);
+  } else {
+    requestHeaders.delete(TENANT_HEADER);
   }
 
-  const supabase = createServerClient(url, anonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => {
-          request.cookies.set(name, value);
-        });
-
-        supabaseResponse = NextResponse.next({
-          request,
-        });
-
-        cookiesToSet.forEach(({ name, value, options }) => {
-          supabaseResponse.cookies.set(name, value, options);
-        });
-      },
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
     },
   });
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (isProtectedPath(request.nextUrl.pathname) && !user) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
-    loginUrl.search = "";
-    loginUrl.searchParams.set(
-      "next",
-      `${request.nextUrl.pathname}${request.nextUrl.search}`,
-    );
-
-    return withCopiedCookies(supabaseResponse, NextResponse.redirect(loginUrl));
-  }
-
-  return supabaseResponse;
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

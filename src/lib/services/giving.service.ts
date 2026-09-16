@@ -308,9 +308,9 @@ function applyTransactionSort<T extends { order: (...args: never[]) => T }>(
   return request.order("created_at" as never, options as never);
 }
 
-function generateReference(locationCode: string) {
+function generateReference(shortCode: string, locationCode: string) {
   const stamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
-  return `HIM-${locationCode}-${stamp}-${randomBytes(2).toString("hex").toUpperCase()}`;
+  return `${shortCode}-${locationCode}-${stamp}-${randomBytes(2).toString("hex").toUpperCase()}`;
 }
 
 export async function listTransactions(query: GivingListQuery = {}) {
@@ -520,7 +520,8 @@ export async function createGivingTransaction(input: unknown) {
   }
 
   const reference =
-    parsed.data.transaction_reference?.trim() || generateReference(location.code);
+    parsed.data.transaction_reference?.trim() ||
+    generateReference(current.organizationShortCode, location.code);
 
   const { data, error } = await supabase
     .from("giving_transactions")

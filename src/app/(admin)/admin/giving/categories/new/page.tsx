@@ -7,7 +7,7 @@ export default async function NewGivingCategoryPage() {
 
   return (
     <>
-      <PageHeader title="Add giving category" description="Categories apply to every Heartfelt campus." />
+      <PageHeader title="Add giving category" description="Categories apply to every campus in this church." />
       <GivingCategoryForm
         defaultValues={{
           name: "",

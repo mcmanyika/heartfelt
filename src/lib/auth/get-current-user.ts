@@ -5,6 +5,31 @@ import type { AccessibleLocation, CurrentUser, RoleAssignment } from "@/lib/auth
 import type { Database } from "@/types/database.types";
 import { logServerError } from "@/lib/utils/log-server-error";
 
+type OrganizationJoin = {
+  name: string;
+  slug: string;
+  short_code?: string | null;
+  logo_url: string | null;
+};
+
+function organizationFromJoin(value: OrganizationJoin | OrganizationJoin[] | null | undefined) {
+  const row = Array.isArray(value) ? value[0] : value;
+  if (!row) {
+    return {
+      name: "Church",
+      slug: "",
+      short_code: "ORG",
+      logo_url: null as string | null,
+    };
+  }
+  return {
+    name: row.name,
+    slug: row.slug === "heartfelt-international-ministries" ? "heartfelt" : row.slug,
+    short_code: (row.short_code ?? (row.slug.includes("heartfelt") ? "HIM" : "ORG")).toUpperCase(),
+    logo_url: row.logo_url,
+  };
+}
+
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 
 type RoleJoinRow = {
@@ -37,15 +62,27 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
     return null;
   }
 
-  const { data: profileData, error: profileError } = await supabase
+  let profileQuery = await supabase
     .from("profiles")
     .select(
-      "id, organization_id, location_id, first_name, last_name, phone, avatar_url, status",
+      "id, organization_id, location_id, first_name, last_name, phone, avatar_url, status, organizations(name, slug, short_code, logo_url)",
     )
     .eq("id", user.id)
     .maybeSingle();
 
-  const profile = profileData as Pick<
+  if (profileQuery.error?.message.toLowerCase().includes("short_code")) {
+    profileQuery = await supabase
+      .from("profiles")
+      .select(
+        "id, organization_id, location_id, first_name, last_name, phone, avatar_url, status, organizations(name, slug, logo_url)",
+      )
+      .eq("id", user.id)
+      .maybeSingle();
+  }
+
+  const { data: profileData, error: profileError } = profileQuery;
+
+  const profile = profileData as (Pick<
     ProfileRow,
     | "id"
     | "organization_id"
@@ -55,7 +92,7 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
     | "phone"
     | "avatar_url"
     | "status"
-  > | null;
+  > & { organizations?: OrganizationJoin | OrganizationJoin[] | null }) | null;
 
   if (profileError) {
     logServerError("get-current-user.profile", profileError);
@@ -150,11 +187,17 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
     }
   }
 
+  const organization = organizationFromJoin(profile.organizations);
+
   return {
     id: user.id,
     email: user.email ?? "",
     profile,
     organizationId: profile.organization_id,
+    organizationName: organization.name,
+    organizationSlug: organization.slug,
+    organizationShortCode: organization.short_code,
+    organizationLogoUrl: organization.logo_url,
     assignments,
     roleNames,
     primaryRole: resolvePrimaryRole(roleNames),

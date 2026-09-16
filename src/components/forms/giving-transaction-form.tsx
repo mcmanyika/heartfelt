@@ -227,7 +227,7 @@ export function GivingTransactionForm({
       <FormField
         label="Transaction reference"
         htmlFor="transaction_reference"
-        hint="Leave blank to generate HIM-CODE-timestamp."
+        hint="Leave blank to generate CODE-CAMPUS-timestamp."
         error={errors.transaction_reference?.message}
       >
         <input

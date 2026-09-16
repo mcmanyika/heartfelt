@@ -13,6 +13,7 @@ import {
   ScrollText,
   Settings,
   UserCog,
+  UserPlus,
   Users,
 } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
@@ -23,6 +24,7 @@ const ICONS = {
   dashboard: LayoutDashboard,
   locations: Building2,
   members: Users,
+  registrations: UserPlus,
   giving: CircleDollarSign,
   terminals: MonitorSmartphone,
   events: CalendarDays,
@@ -38,6 +40,8 @@ export type AdminSidebarUser = {
   lastName: string;
   roleLabel: string;
   locationLabel: string;
+  organizationName: string;
+  organizationShortCode: string;
 };
 
 type AdminSidebarProps = {
@@ -52,10 +56,10 @@ export function AdminSidebar({ items, user }: AdminSidebarProps) {
     <div className="flex h-full flex-col bg-navy text-white">
       <div className="border-b border-white/10 px-5 py-5">
         <p className="text-[11px] font-semibold tracking-[0.18em] text-gold uppercase">
-          HIM
+          {user.organizationShortCode}
         </p>
         <p className="mt-2 text-sm leading-5 font-semibold">
-          Heartfelt International Ministries
+          {user.organizationName}
         </p>
       </div>
 

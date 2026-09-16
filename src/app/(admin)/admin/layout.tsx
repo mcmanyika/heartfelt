@@ -4,12 +4,14 @@ import { ADMIN_NAV_ITEMS } from "@/lib/auth/admin-nav";
 import { hasAnyRole, roleLabel } from "@/lib/auth/permissions";
 import { requireRole } from "@/lib/auth/require-role";
 import { STAFF_ROLES } from "@/lib/auth/types";
+import { requireTenant } from "@/lib/tenant/get-tenant";
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  await requireTenant();
   const current = await requireRole(STAFF_ROLES);
   const selection = await getAdminLocationSelection(current);
   const navItems = ADMIN_NAV_ITEMS.filter((item) => hasAnyRole(current, item.roles));
@@ -26,6 +28,8 @@ export default async function AdminLayout({
         lastName: current.profile.last_name,
         roleLabel: current.primaryRole ? roleLabel(current.primaryRole) : "Staff",
         locationLabel,
+        organizationName: current.organizationName,
+        organizationShortCode: current.organizationShortCode,
       }}
       navItems={[...navItems]}
       locationLocked={selection.locked}

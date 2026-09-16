@@ -1,6 +1,7 @@
 import { OrganizationForm } from "@/components/forms/organization-form";
 import { PageHeader } from "@/components/ui/page-header";
 import { getOrganization } from "@/lib/services/organization.service";
+import { tenantOrigin } from "@/lib/tenant/config";
 
 export default async function AdminSettingsPage() {
   const { organization, error } = await getOrganization();
@@ -18,6 +19,8 @@ export default async function AdminSettingsPage() {
       {organization ? (
         <OrganizationForm
           slug={organization.slug}
+          shortCode={organization.short_code}
+          churchUrl={tenantOrigin(organization.slug)}
           defaultValues={{
             name: organization.name,
             email: organization.email ?? "",

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, loadCurrentUser } from "@/lib/auth/get-current-user";
 import { createClient } from "@/lib/supabase/server";
+import { getTenant } from "@/lib/tenant/get-tenant";
 import type { CurrentUser } from "@/lib/auth/types";
 
 type RequireUserOptions = {
@@ -14,6 +15,13 @@ export async function requireUser(
 
   if (!current) {
     redirect("/login");
+  }
+
+  const tenant = await getTenant();
+  if (tenant && tenant.id !== current.organizationId) {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+    redirect("/login?reason=wrong-church");
   }
 
   if (current.profileStatus !== "ACTIVE") {

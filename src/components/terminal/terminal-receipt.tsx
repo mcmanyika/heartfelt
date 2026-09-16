@@ -17,6 +17,7 @@ export type TerminalReceiptData = {
   method: string;
   receiptCode?: string;
   location: string;
+  organizationName: string;
   terminalCode: string;
   paidAt: string;
   memberName: string;
@@ -75,7 +76,7 @@ export function TerminalReceipt({
 
           <article className="terminal-receipt-slip mt-6 w-full max-w-sm rounded-2xl px-6 py-7">
             <p className="text-center text-[11px] font-semibold tracking-[0.18em] uppercase">
-              Heartfelt International Ministries
+              {receipt.organizationName}
             </p>
             <h2 className="mt-2 text-center text-lg font-semibold">{receipt.location}</h2>
             <p className="mt-1 text-center text-xs opacity-80">

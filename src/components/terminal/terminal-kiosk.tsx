@@ -263,6 +263,7 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
         method: terminalPaymentDisplay(method, cardChannel),
         receiptCode: cardChannel === "CBZ" ? receiptCode.trim() : undefined,
         location: terminal.location_name,
+        organizationName: terminal.organization_name,
         terminalCode: terminal.terminal_code,
         paidAt: new Date().toISOString(),
         memberName: result.member_name || memberName.trim() || "Guest",
@@ -292,7 +293,7 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
         <header className="kiosk-hairline flex flex-wrap items-start justify-between gap-4 border-b pb-5">
           <div>
             <p className="kiosk-gold text-[11px] font-semibold tracking-[0.18em] uppercase">
-              Heartfelt International Ministries
+              {terminal.organization_name}
             </p>
             <h1 className="mt-2 text-2xl font-semibold">{terminal.location_name}</h1>
             <p className="kiosk-muted mt-1 text-sm">

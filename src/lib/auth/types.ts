@@ -30,6 +30,10 @@ export type CurrentUser = {
     | "status"
   >;
   organizationId: string;
+  organizationName: string;
+  organizationSlug: string;
+  organizationShortCode: string;
+  organizationLogoUrl: string | null;
   assignments: RoleAssignment[];
   roleNames: AppRole[];
   primaryRole: AppRole | null;

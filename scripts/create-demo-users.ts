@@ -20,7 +20,7 @@ config({ path: ".env.local" });
 config({ path: ".env" });
 
 const DEMO_PASSWORD = "ChangeMe123!";
-const ORG_SLUG = "heartfelt-international-ministries";
+const ORG_SLUG = "heartfelt";
 
 type AppRole = "SUPER_ADMIN" | "LOCATION_ADMIN" | "FINANCE" | "MEMBER";
 type MembershipStatus = Enums<"membership_status">;
@@ -209,12 +209,21 @@ async function main() {
     },
   );
 
-  const { data: organization, error: organizationError } = await supabase
+  const { data: currentOrg, error: organizationError } = await supabase
     .from("organizations")
     .select("id, name")
     .eq("slug", ORG_SLUG)
-    .single();
+    .maybeSingle();
 
+  const { data: legacyOrg } = currentOrg
+    ? { data: null }
+    : await supabase
+        .from("organizations")
+        .select("id, name")
+        .eq("slug", "heartfelt-international-ministries")
+        .maybeSingle();
+
+  const organization = currentOrg ?? legacyOrg;
   if (organizationError || !organization) {
     throw new Error(
       "Organization not found. Run `supabase db reset` or apply migrations and seed.sql first.",

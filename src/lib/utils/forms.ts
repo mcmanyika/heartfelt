@@ -12,6 +12,10 @@ export function firstZodError(error: ZodError) {
 export function userSafeDatabaseError(message: string) {
   const normalized = message.toLowerCase();
 
+  if (normalized.includes("organizations_slug") || normalized.includes("organizations_short_code")) {
+    return "That church address or code is already taken.";
+  }
+
   if (normalized.includes("locations_organization_id_code")) {
     return "A location with this code already exists.";
   }

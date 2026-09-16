@@ -29,7 +29,7 @@ export const terminalSchema = z.object({
     .or(z.literal(""))
     .refine(
       (value) => !value || /^[A-Z0-9][A-Z0-9-]{2,31}$/i.test(value),
-      "Use a code like HIM-HRE-T001.",
+      "Use a code like GRC-HRE-T001.",
     ),
   device_name: z.string().trim().min(2, "Enter a device name.").max(80),
   serial_number: z.string().trim().max(80).optional().or(z.literal("")),

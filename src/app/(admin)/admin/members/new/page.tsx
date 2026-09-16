@@ -14,7 +14,7 @@ export default async function NewMemberPage() {
     <>
       <PageHeader
         title="Add member"
-        description="A membership number is generated on the server as HIM-CODE-000000."
+        description="A membership number is generated on the server as CODE-CAMPUS-000000."
       />
       <MemberForm
         lockLocation={!current.isSuperAdmin}

@@ -12,10 +12,12 @@ import {
 
 type OrganizationFormProps = {
   slug: string;
+  shortCode: string;
+  churchUrl: string;
   defaultValues: OrganizationInput;
 };
 
-export function OrganizationForm({ slug, defaultValues }: OrganizationFormProps) {
+export function OrganizationForm({ slug, shortCode, churchUrl, defaultValues }: OrganizationFormProps) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -62,11 +64,18 @@ export function OrganizationForm({ slug, defaultValues }: OrganizationFormProps)
         <input id="name" className={fieldClassName} disabled={isPending} {...register("name")} />
       </FormField>
       <FormField
-        label="Slug"
+        label="Church address"
         htmlFor="slug"
-        hint="The organization slug is an identity key and cannot be changed here."
+        hint={`Members sign in at ${churchUrl}. This cannot be changed here.`}
       >
         <input id="slug" className={fieldClassName} value={slug} disabled readOnly />
+      </FormField>
+      <FormField
+        label="Church code"
+        htmlFor="short_code"
+        hint="Used on membership numbers and receipts. This cannot be changed after create."
+      >
+        <input id="short_code" className={fieldClassName} value={shortCode} disabled readOnly />
       </FormField>
       <FormField label="Email" htmlFor="email" error={errors.email?.message}>
         <input

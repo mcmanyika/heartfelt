@@ -9,6 +9,7 @@ export type OrganizationSettings = {
   id: string;
   name: string;
   slug: string;
+  short_code: string;
   email: string | null;
   phone: string | null;
 };
@@ -18,16 +19,31 @@ export async function getOrganization() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("organizations")
-    .select("id, name, slug, email, phone")
+    .select("id, name, slug, short_code, email, phone")
     .eq("id", current.organizationId)
     .maybeSingle();
 
-  if (error) {
+  let organization = data as OrganizationSettings | null;
+  if (error?.message.toLowerCase().includes("short_code")) {
+    const fallback = await supabase
+      .from("organizations")
+      .select("id, name, slug, email, phone")
+      .eq("id", current.organizationId)
+      .maybeSingle();
+    if (fallback.error) {
+      logServerError("organization.get", fallback.error);
+      return { organization: null as OrganizationSettings | null, error: "Unable to load organization settings." };
+    }
+    const row = fallback.data as Omit<OrganizationSettings, "short_code"> | null;
+    organization = row
+      ? { ...row, short_code: row.slug.includes("heartfelt") ? "HIM" : "ORG" }
+      : null;
+  } else if (error) {
     logServerError("organization.get", error);
     return { organization: null as OrganizationSettings | null, error: "Unable to load organization settings." };
   }
 
-  return { organization: (data as OrganizationSettings | null) ?? null };
+  return { organization };
 }
 
 export async function updateOrganization(input: unknown) {

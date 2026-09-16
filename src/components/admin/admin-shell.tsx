@@ -86,7 +86,7 @@ export function AdminShell({
                 {open ? <X className="size-5" /> : <Menu className="size-5" />}
               </button>
               <p className="truncate text-sm font-medium text-navy lg:hidden">
-                Heartfelt International Ministries
+                {user.organizationName}
               </p>
             </div>
             <LocationSelector

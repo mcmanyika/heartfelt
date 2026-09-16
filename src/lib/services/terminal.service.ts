@@ -8,6 +8,7 @@ import { STAFF_ROLES } from "@/lib/auth/types";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getTenant } from "@/lib/tenant/get-tenant";
 import { emptyToNull, firstZodError, userSafeDatabaseError } from "@/lib/utils/forms";
 import { logServerError } from "@/lib/utils/log-server-error";
 import { displayMemberName } from "@/lib/utils/format";
@@ -53,6 +54,7 @@ export type PublicTerminal = {
   terminal_code: string;
   device_name: string;
   status: TerminalStatus;
+  organization_name: string;
   location_name: string;
   location_code: string;
   categories: Array<{ id: string; name: string }>;
@@ -222,9 +224,10 @@ export async function getTerminal(terminalId: string) {
 async function nextTerminalCode(
   supabase: Awaited<ReturnType<typeof createClient>>,
   organizationId: string,
+  shortCode: string,
   locationCode: string,
 ) {
-  const prefix = `HIM-${locationCode}-T`;
+  const prefix = `${shortCode}-${locationCode}-T`;
   const { data } = await supabase
     .from("payment_terminals")
     .select("terminal_code")
@@ -278,7 +281,7 @@ export async function createTerminal(input: unknown) {
   const location = locationData as { id: string; code: string };
   const terminalCode =
     parsed.data.terminal_code?.trim().toUpperCase() ||
-    (await nextTerminalCode(supabase, current.organizationId, location.code));
+    (await nextTerminalCode(supabase, current.organizationId, current.organizationShortCode, location.code));
 
   const { data, error } = await supabase
     .from("payment_terminals")
@@ -429,10 +432,16 @@ export async function listTerminalGiving(terminalId: string) {
 }
 
 export async function getPublicTerminal(terminalCode: string) {
+  const tenant = await getTenant();
+  if (!tenant) {
+    return { terminal: null as PublicTerminal | null };
+  }
+
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("payment_terminals")
     .select("id, organization_id, terminal_code, device_name, status, locations(name, code)")
+    .eq("organization_id", tenant.id)
     .eq("terminal_code", terminalCode.trim().toUpperCase())
     .maybeSingle();
 
@@ -465,16 +474,17 @@ export async function getPublicTerminal(terminalCode: string) {
       terminal_code: String(row.terminal_code),
       device_name: String(row.device_name),
       status: row.status as TerminalStatus,
-      location_name: locationRow?.name ?? "Heartfelt",
+      organization_name: tenant.name,
+      location_name: locationRow?.name ?? tenant.name,
       location_code: locationRow?.code ?? "—",
       categories: (categories ?? []) as Array<{ id: string; name: string }>,
     },
   };
 }
 
-function generateTerminalReference(locationCode: string) {
+function generateTerminalReference(shortCode: string, locationCode: string) {
   const stamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
-  return `HIM-${locationCode}-T-${stamp}-${randomBytes(2).toString("hex").toUpperCase()}`;
+  return `${shortCode}-${locationCode}-T-${stamp}-${randomBytes(2).toString("hex").toUpperCase()}`;
 }
 
 type TerminalRow = {
@@ -487,23 +497,44 @@ type TerminalRow = {
 };
 
 async function getOnlineTerminalByCode(terminalCode: string) {
+  const tenant = await getTenant();
   const supabase = createAdminClient();
+  if (!tenant) {
+    return {
+      error: "This terminal is not available.",
+      terminal: null as TerminalRow | null,
+      supabase,
+      shortCode: "ORG",
+    };
+  }
+
   const { data, error } = await supabase
     .from("payment_terminals")
     .select("id, organization_id, location_id, terminal_code, status, locations(code)")
+    .eq("organization_id", tenant.id)
     .eq("terminal_code", terminalCode.trim().toUpperCase())
     .maybeSingle();
 
   if (error || !data) {
-    return { error: "This terminal is not available.", terminal: null as TerminalRow | null, supabase };
+    return {
+      error: "This terminal is not available.",
+      terminal: null as TerminalRow | null,
+      supabase,
+      shortCode: tenant.short_code,
+    };
   }
 
   const terminal = data as TerminalRow;
   if (terminal.status !== "ONLINE") {
-    return { error: "This terminal is not taking payments.", terminal: null, supabase };
+    return {
+      error: "This terminal is not taking payments.",
+      terminal: null as TerminalRow | null,
+      supabase,
+      shortCode: tenant.short_code,
+    };
   }
 
-  return { error: null as string | null, terminal, supabase };
+  return { error: null as string | null, terminal, supabase, shortCode: tenant.short_code };
 }
 
 function sanitizeMemberSearch(query: string) {
@@ -631,7 +662,7 @@ export async function simulateTerminalBatchPayment(input: unknown) {
     };
   }
 
-  const { error: terminalError, terminal, supabase } = await getOnlineTerminalByCode(
+  const { error: terminalError, terminal, supabase, shortCode } = await getOnlineTerminalByCode(
     parsed.data.terminal_code,
   );
   if (terminalError || !terminal) {
@@ -713,7 +744,7 @@ export async function simulateTerminalBatchPayment(input: unknown) {
       amount: Number(item.amount),
       currency: item.currency,
       payment_method: storedMethod,
-      transaction_reference: generateTerminalReference(location?.code ?? "HIM"),
+      transaction_reference: generateTerminalReference(shortCode, location?.code ?? "LOC"),
       status: "SUCCESS" as const,
       terminal_id: terminal.id,
       notes: parts.join(". "),

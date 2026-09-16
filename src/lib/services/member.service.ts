@@ -56,6 +56,7 @@ export type MemberRecord = {
   updated_at: string;
   location_name: string;
   location_code: string;
+  profile_status: string | null;
 };
 
 export type MemberGivingRow = {
@@ -97,6 +98,7 @@ type MemberRow = {
     | { id: string; name: string; code: string }
     | { id: string; name: string; code: string }[]
     | null;
+  profiles?: { status: string } | { status: string }[] | null;
 };
 
 function locationFromJoin(value: MemberRow["locations"]) {
@@ -126,6 +128,7 @@ function toListItem(row: MemberRow): MemberListItem {
 
 function toRecord(row: MemberRow): MemberRecord {
   const location = locationFromJoin(row.locations);
+  const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
   return {
     id: row.id,
     organization_id: row.organization_id ?? "",
@@ -145,6 +148,7 @@ function toRecord(row: MemberRow): MemberRecord {
     updated_at: row.updated_at ?? "",
     location_name: location?.name ?? "Unknown",
     location_code: location?.code ?? "—",
+    profile_status: profile?.status ?? null,
   };
 }
 
@@ -253,7 +257,7 @@ export async function getMember(memberId: string) {
   const { data, error } = await supabase
     .from("members")
     .select(
-      "id, organization_id, location_id, profile_id, membership_number, membership_status, date_joined, date_of_birth, gender, address, first_name, last_name, email, phone, created_at, updated_at, locations(id, name, code)",
+      "id, organization_id, location_id, profile_id, membership_number, membership_status, date_joined, date_of_birth, gender, address, first_name, last_name, email, phone, created_at, updated_at, locations(id, name, code), profiles(status)",
     )
     .eq("id", memberId)
     .eq("organization_id", current.organizationId)

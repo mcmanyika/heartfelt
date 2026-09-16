@@ -23,10 +23,11 @@ const ICONS = {
 
 type MemberShellProps = {
   firstName: string;
+  organizationName: string;
   children: React.ReactNode;
 };
 
-export function MemberShell({ firstName, children }: MemberShellProps) {
+export function MemberShell({ firstName, organizationName, children }: MemberShellProps) {
   const pathname = usePathname();
 
   return (
@@ -35,7 +36,7 @@ export function MemberShell({ firstName, children }: MemberShellProps) {
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold tracking-[0.18em] text-gold uppercase">
-              Heartfelt International Ministries
+              {organizationName}
             </p>
             <p className="mt-1 truncate text-sm text-white/85">Welcome, {firstName}</p>
           </div>

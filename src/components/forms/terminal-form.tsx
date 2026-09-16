@@ -90,7 +90,7 @@ export function TerminalForm({
       <FormField
         label="Terminal code"
         htmlFor="terminal_code"
-        hint="Leave blank to generate HIM-CODE-T000."
+        hint="Leave blank to generate CODE-CAMPUS-T000."
         error={errors.terminal_code?.message}
       >
         <input

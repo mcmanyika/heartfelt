@@ -2,16 +2,18 @@
 -- Auth users are created separately via scripts/create-demo-users.ts
 -- because inserting into auth.users from SQL is not a supported bootstrap path.
 
-INSERT INTO public.organizations (name, slug, email, phone)
+INSERT INTO public.organizations (name, slug, short_code, email, phone)
 VALUES (
   'Heartfelt International Ministries',
-  'heartfelt-international-ministries',
+  'heartfelt',
+  'HIM',
   'office@heartfelt.local',
   '+263 242 000 000'
 )
 ON CONFLICT (slug) DO UPDATE
 SET
   name = EXCLUDED.name,
+  short_code = EXCLUDED.short_code,
   email = EXCLUDED.email,
   phone = EXCLUDED.phone;
 
@@ -54,7 +56,7 @@ CROSS JOIN (
     ('Nairobi', 'NBO', 'Kenya', 'Nairobi', 'Westlands', '+254 20 444 4444', 'nairobi@heartfelt.local'),
     ('Dallas', 'DAL', 'United States', 'Dallas', 'Dallas, TX', '+1 214 555 5555', 'dallas@heartfelt.local')
 ) AS v(name, code, country, city, address, phone, email)
-WHERE o.slug = 'heartfelt-international-ministries'
+WHERE o.slug = 'heartfelt'
 ON CONFLICT (organization_id, code) DO UPDATE
 SET
   name = EXCLUDED.name,
@@ -80,7 +82,7 @@ CROSS JOIN (
     ('Missions', 'Local and international missions'),
     ('Other', 'Other designated giving')
 ) AS v(name, description)
-WHERE o.slug = 'heartfelt-international-ministries'
+WHERE o.slug = 'heartfelt'
 ON CONFLICT (organization_id, name) DO UPDATE
 SET
   description = EXCLUDED.description,
@@ -120,7 +122,7 @@ CROSS JOIN (
 LEFT JOIN public.locations l
   ON l.organization_id = o.id
  AND l.code = v.code
-WHERE o.slug = 'heartfelt-international-ministries'
+WHERE o.slug = 'heartfelt'
   AND NOT EXISTS (
     SELECT 1
     FROM public.events e
@@ -155,7 +157,7 @@ CROSS JOIN (
 LEFT JOIN public.locations l
   ON l.organization_id = o.id
  AND l.code = v.code
-WHERE o.slug = 'heartfelt-international-ministries'
+WHERE o.slug = 'heartfelt'
   AND NOT EXISTS (
     SELECT 1
     FROM public.announcements a

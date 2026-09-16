@@ -7,6 +7,7 @@ import { getHomePath } from "@/lib/auth/permissions";
 import { resolvePostLoginPath } from "@/lib/auth/redirect";
 import { createClient } from "@/lib/supabase/server";
 import { loginSchema } from "@/lib/validators/auth.schema";
+import { getTenant } from "@/lib/tenant/get-tenant";
 import type { Database } from "@/types/database.types";
 import { logServerError } from "@/lib/utils/log-server-error";
 
@@ -47,9 +48,19 @@ export async function loginAction(input: unknown, next?: string | null) {
     return { error: "Your account is missing a profile. Contact an administrator." };
   }
 
+  const tenant = await getTenant();
+  if (!tenant) {
+    await supabase.auth.signOut();
+    return { error: "Sign in from your church address." };
+  }
+  if (tenant.id !== current.organizationId) {
+    await supabase.auth.signOut();
+    return { error: "This account belongs to a different church." };
+  }
+
   if (current.profileStatus !== "ACTIVE") {
     await supabase.auth.signOut();
-    return { error: "This account is inactive. Contact an administrator." };
+    return { error: "This account is waiting for an administrator to activate it." };
   }
 
   if (current.roleNames.length === 0) {

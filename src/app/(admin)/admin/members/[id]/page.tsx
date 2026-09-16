@@ -4,6 +4,7 @@ import { FamilyConnectForm } from "@/components/admin/family-connect-form";
 import { FamilyRemoveButton } from "@/components/admin/family-remove-button";
 import { MemberDeactivateButton } from "@/components/admin/member-deactivate-button";
 import { MemberTransferDialog } from "@/components/admin/member-transfer-dialog";
+import { RegistrationActivateButton } from "@/components/admin/registration-activate-button";
 import { DataTable, DataTableBody, DataTableHead } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -63,6 +64,9 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
               memberName={name}
               destinations={destinations.locations}
             />
+            {member.profile_id && member.profile_status === "INACTIVE" ? (
+              <RegistrationActivateButton memberId={member.id} memberName={name} />
+            ) : null}
             {member.membership_status !== "INACTIVE_MEMBER" ? (
               <MemberDeactivateButton memberId={member.id} memberName={name} />
             ) : null}
@@ -126,9 +130,11 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
         <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
           <h2 className="text-sm font-semibold text-navy">Account information</h2>
           <p className="mt-4 text-sm text-gray-600">
-            {member.profile_id
-              ? "This member has a login account. Prefer profile contact details when they differ from the snapshot stored here."
-              : "No login account yet. The contact fields on this record will be used until a profile is linked."}
+            {member.profile_id && member.profile_status === "INACTIVE"
+              ? "This member registered a login. Activate the account before they can sign in."
+              : member.profile_id
+                ? "This member has a login account. Prefer profile contact details when they differ from the snapshot stored here."
+                : "No login account yet. The contact fields on this record will be used until a profile is linked."}
           </p>
         </section>
       </div>

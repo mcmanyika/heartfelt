@@ -8,6 +8,7 @@ export type AdminNavItem = {
     | "dashboard"
     | "locations"
     | "members"
+    | "registrations"
     | "giving"
     | "terminals"
     | "events"
@@ -37,6 +38,12 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     href: "/admin/members",
     label: "Members",
     icon: "members",
+    roles: ["SUPER_ADMIN", "LOCATION_ADMIN"],
+  },
+  {
+    href: "/admin/registrations",
+    label: "Registrations",
+    icon: "registrations",
     roles: ["SUPER_ADMIN", "LOCATION_ADMIN"],
   },
   {
@@ -106,6 +113,7 @@ export const ADMIN_PAGE_ROLES = {
   dashboard: STAFF_ROLES,
   locations: ["SUPER_ADMIN"] as const,
   members: ["SUPER_ADMIN", "LOCATION_ADMIN"] as const,
+  registrations: ["SUPER_ADMIN", "LOCATION_ADMIN"] as const,
   giving: STAFF_ROLES,
   terminals: STAFF_ROLES,
   events: ["SUPER_ADMIN", "LOCATION_ADMIN"] as const,

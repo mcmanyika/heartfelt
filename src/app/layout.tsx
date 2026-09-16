@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { PRODUCT_NAME } from "@/lib/tenant/config";
+import { getTenant } from "@/lib/tenant/get-tenant";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,13 +14,26 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Heartfelt International Ministries",
-  description:
-    "Centralized multi-location church management for Heartfelt International Ministries.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const tenant = await getTenant();
+  if (tenant) {
+    return {
+      title: tenant.name,
+      description: `Church management for ${tenant.name}.`,
+    };
+  }
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+  return {
+    title: PRODUCT_NAME,
+    description: "Multi-campus church management for every congregation.",
+  };
+}
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html
       lang="en"
