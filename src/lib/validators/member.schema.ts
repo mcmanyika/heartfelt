@@ -8,6 +8,24 @@ export const MEMBERSHIP_STATUSES = [
   "TRANSFERRED",
 ] as const;
 
+export const GENDERS = ["Female", "Male"] as const;
+
+export function normalizeGender(value?: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  const lowered = value.trim().toLowerCase();
+  if (lowered === "female" || lowered === "f") {
+    return "Female";
+  }
+  if (lowered === "male" || lowered === "m") {
+    return "Male";
+  }
+
+  return GENDERS.includes(value as (typeof GENDERS)[number]) ? value : "";
+}
+
 const optionalDate = z
   .string()
   .trim()
@@ -32,7 +50,11 @@ export const memberSchema = z.object({
     .trim()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter the date joined."),
   date_of_birth: optionalDate,
-  gender: z.string().trim().max(30).optional().or(z.literal("")),
+  gender: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine((value) => !value || GENDERS.includes(value as (typeof GENDERS)[number]), "Select Female or Male."),
   address: z.string().trim().max(240).optional().or(z.literal("")),
 });
 

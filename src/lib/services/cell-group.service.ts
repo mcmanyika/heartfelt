@@ -831,7 +831,7 @@ export async function removeCellGroupMember(groupId: string, membershipId: strin
     return { error: left.error };
   }
 
-  return { ok: true as const };
+  return { ok: true as const, memberId: row.member_id };
 }
 
 export async function listCellGroupMeetings(groupId: string) {
@@ -983,7 +983,7 @@ export async function getMemberCellGroup(memberId: string) {
   await requireRole(CELL_GROUP_ROLES);
   const active = await findActiveMembership(memberId);
   if (!active.membership) {
-    return { group: null as { id: string; name: string } | null };
+    return { group: null as { id: string; membership_id: string; name: string } | null };
   }
 
   const group = active.membership.cell_groups as
@@ -992,10 +992,46 @@ export async function getMemberCellGroup(memberId: string) {
     | null;
   const groupRow = Array.isArray(group) ? group[0] : group;
   if (!groupRow) {
-    return { group: null as { id: string; name: string } | null };
+    return { group: null as { id: string; membership_id: string; name: string } | null };
   }
 
-  return { group: { id: groupRow.id, name: groupRow.name } };
+  return {
+    group: {
+      id: groupRow.id,
+      membership_id: String(active.membership.id),
+      name: groupRow.name,
+    },
+  };
+}
+
+export type AssignableCellGroupOption = {
+  id: string;
+  name: string;
+  code: string | null;
+};
+
+export async function listAssignableCellGroups(locationId: string) {
+  const current = await requireRole(CELL_GROUP_ROLES);
+  if (!canMutateCellGroup(current, locationId)) {
+    return { groups: [] as AssignableCellGroupOption[] };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("cell_groups")
+    .select("id, name, code")
+    .eq("organization_id", current.organizationId)
+    .eq("location_id", locationId)
+    .eq("status", "ACTIVE")
+    .order("name")
+    .limit(100);
+
+  if (error) {
+    logServerError("cellGroup.assignable", error);
+    return { groups: [] as AssignableCellGroupOption[], error: "Unable to load cell groups." };
+  }
+
+  return { groups: (data ?? []) as AssignableCellGroupOption[] };
 }
 
 export async function getMyCellGroup() {

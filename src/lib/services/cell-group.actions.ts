@@ -82,7 +82,7 @@ export async function removeCellGroupMemberAction(groupId: string, membershipId:
     return { error: result.error };
   }
 
-  revalidateCellGroupPaths(groupId);
+  revalidateCellGroupPaths(groupId, result.memberId);
   return { ok: true as const };
 }
 

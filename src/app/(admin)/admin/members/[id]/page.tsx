@@ -1,17 +1,30 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CellGroupRemoveMemberButton } from "@/components/admin/cell-group-remove-member-button";
+import { DepartmentRemoveMemberButton } from "@/components/admin/department-remove-member-button";
 import { FamilyConnectForm } from "@/components/admin/family-connect-form";
 import { FamilyRemoveButton } from "@/components/admin/family-remove-button";
+import { MemberCellGroupForm } from "@/components/admin/member-cell-group-form";
 import { MemberDeactivateButton } from "@/components/admin/member-deactivate-button";
+import { MemberDepartmentForm } from "@/components/admin/member-department-form";
 import { MemberTransferDialog } from "@/components/admin/member-transfer-dialog";
 import { RegistrationActivateButton } from "@/components/admin/registration-activate-button";
 import { DataTable, DataTableBody, DataTableHead } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { requireRole } from "@/lib/auth/require-role";
+import {
+  canMutateCellGroup,
+  getMemberCellGroup,
+  listAssignableCellGroups,
+} from "@/lib/services/cell-group.service";
+import {
+  canMutateDepartment,
+  getMemberDepartments,
+  listAssignableDepartments,
+} from "@/lib/services/department.service";
 import { listMemberFamily } from "@/lib/services/family.service";
-import { getMemberCellGroup } from "@/lib/services/cell-group.service";
-import { getMemberDepartments } from "@/lib/services/department.service";
 import {
   getMember,
   getMemberGiving,
@@ -19,11 +32,13 @@ import {
   listTransferDestinations,
 } from "@/lib/services/member.service";
 import {
+  departmentMemberRoleLabel,
   displayMemberName,
   familyRelationshipLabel,
   formatAmount,
   formatDate,
   formatDateTime,
+  genderLabel,
   membershipStatusLabel,
 } from "@/lib/utils/format";
 
@@ -32,6 +47,7 @@ type MemberDetailPageProps = {
 };
 
 export default async function MemberDetailPage({ params }: MemberDetailPageProps) {
+  const current = await requireRole(["SUPER_ADMIN", "LOCATION_ADMIN"]);
   const { id } = await params;
   const result = await getMember(id);
 
@@ -41,14 +57,24 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
 
   const member = result.member;
   const name = displayMemberName(member);
-  const [giving, events, destinations, family, cellGroup, departments] = await Promise.all([
-    getMemberGiving(member.id),
-    getMemberUpcomingEvents(member),
-    listTransferDestinations(member.location_id),
-    listMemberFamily(member.id),
-    getMemberCellGroup(member.id),
-    getMemberDepartments(member.id),
-  ]);
+  const canMutateGroups = canMutateCellGroup(current, member.location_id);
+  const canMutateDepartments = canMutateDepartment(current, member.location_id);
+  const [giving, events, destinations, family, cellGroup, departments, assignableGroups, assignableDepartments] =
+    await Promise.all([
+      getMemberGiving(member.id),
+      getMemberUpcomingEvents(member),
+      listTransferDestinations(member.location_id),
+      listMemberFamily(member.id),
+      getMemberCellGroup(member.id),
+      getMemberDepartments(member.id),
+      listAssignableCellGroups(member.location_id),
+      listAssignableDepartments(member.location_id),
+    ]);
+  const remainingGroups = assignableGroups.groups.filter((group) => group.id !== cellGroup.group?.id);
+  const assignedDepartmentIds = new Set(departments.departments.map((department) => department.id));
+  const remainingDepartments = assignableDepartments.departments.filter(
+    (department) => !assignedDepartmentIds.has(department.id),
+  );
 
   return (
     <>
@@ -96,7 +122,7 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
             </div>
             <div>
               <dt className="text-gray-500">Gender</dt>
-              <dd className="text-navy">{member.gender || "—"}</dd>
+              <dd className="text-navy">{genderLabel(member.gender)}</dd>
             </div>
             <div>
               <dt className="text-gray-500">Address</dt>
@@ -117,36 +143,6 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
             <div>
               <dt className="text-gray-500">Date joined</dt>
               <dd className="text-navy">{formatDate(member.date_joined)}</dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">Cell group</dt>
-              <dd className="text-navy">
-                {cellGroup.group ? (
-                  <Link href={`/admin/cell-groups/${cellGroup.group.id}`} className="hover:underline">
-                    {cellGroup.group.name}
-                  </Link>
-                ) : (
-                  "—"
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">Departments</dt>
-              <dd className="text-navy">
-                {departments.departments.length === 0 ? (
-                  "—"
-                ) : (
-                  <ul className="space-y-1">
-                    {departments.departments.map((department) => (
-                      <li key={department.id}>
-                        <Link href={`/admin/departments/${department.id}`} className="hover:underline">
-                          {department.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </dd>
             </div>
           </dl>
         </section>
@@ -172,6 +168,101 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
           </p>
         </section>
       </div>
+
+      <section className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <h2 className="text-sm font-semibold text-navy">Groups & departments</h2>
+        <p className="mt-2 text-sm text-gray-600">
+          Assign this member to a campus cell group and one or more departments. A member can belong to
+          only one cell group.
+        </p>
+        <div className="mt-5 grid gap-6 lg:grid-cols-2">
+          <div>
+            <h3 className="text-sm font-medium text-navy">Cell group</h3>
+            <div className="mt-3">
+              {cellGroup.group ? (
+                <div className="flex flex-col gap-3 rounded-xl border border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm font-medium text-navy">
+                    <Link href={`/admin/cell-groups/${cellGroup.group.id}`} className="hover:underline">
+                      {cellGroup.group.name}
+                    </Link>
+                  </p>
+                  {canMutateGroups ? (
+                    <CellGroupRemoveMemberButton
+                      groupId={cellGroup.group.id}
+                      membershipId={cellGroup.group.membership_id}
+                      memberName={name}
+                    />
+                  ) : null}
+                </div>
+              ) : (
+                <EmptyState
+                  title="No cell group"
+                  description="Assign an active group from this campus."
+                />
+              )}
+            </div>
+            {canMutateGroups ? (
+              <div className="mt-5 border-t border-border pt-5">
+                <MemberCellGroupForm
+                  memberId={member.id}
+                  groups={remainingGroups}
+                  hasCurrentGroup={Boolean(cellGroup.group)}
+                />
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-gray-600">You can view this assignment but not change it.</p>
+            )}
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-navy">Departments</h3>
+            <div className="mt-3">
+              {departments.departments.length === 0 ? (
+                <EmptyState
+                  title="No departments"
+                  description="Add this member to any active department on this campus."
+                />
+              ) : (
+                <ul className="divide-y divide-border rounded-xl border border-border">
+                  {departments.departments.map((department) => (
+                    <li
+                      key={department.membership_id}
+                      className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-navy">
+                          <Link href={`/admin/departments/${department.id}`} className="hover:underline">
+                            {department.name}
+                          </Link>
+                        </p>
+                        <p className="text-xs text-gray-500">{departmentMemberRoleLabel(department.role)}</p>
+                      </div>
+                      {canMutateDepartments ? (
+                        <DepartmentRemoveMemberButton
+                          departmentId={department.id}
+                          membershipId={department.membership_id}
+                          memberName={name}
+                        />
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {canMutateDepartments ? (
+              <div className="mt-5 border-t border-border pt-5">
+                <MemberDepartmentForm
+                  memberId={member.id}
+                  departments={remainingDepartments}
+                  hasCurrentDepartments={departments.departments.length > 0}
+                />
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-gray-600">You can view these departments but not change them.</p>
+            )}
+          </div>
+        </div>
+      </section>
 
       <section className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-navy">Family connections</h2>

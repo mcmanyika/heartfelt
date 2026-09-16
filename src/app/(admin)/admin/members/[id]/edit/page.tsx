@@ -3,6 +3,7 @@ import { MemberForm } from "@/components/forms/member-form";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth/require-role";
 import { getMember } from "@/lib/services/member.service";
+import { normalizeGender } from "@/lib/validators/member.schema";
 
 type EditMemberPageProps = {
   params: Promise<{ id: string }>;
@@ -51,7 +52,7 @@ export default async function EditMemberPage({ params }: EditMemberPageProps) {
           membership_status: member.membership_status,
           date_joined: member.date_joined,
           date_of_birth: member.date_of_birth ?? "",
-          gender: member.gender ?? "",
+          gender: normalizeGender(member.gender),
           address: member.address ?? "",
         }}
       />

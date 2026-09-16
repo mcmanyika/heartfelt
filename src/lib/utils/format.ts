@@ -277,6 +277,20 @@ export function departmentMemberRoleLabel(role: string) {
   return cellGroupMemberRoleLabel(role);
 }
 
+export function genderLabel(value: string | null | undefined) {
+  if (!value) {
+    return "—";
+  }
+  const lowered = value.trim().toLowerCase();
+  if (lowered === "female" || lowered === "f") {
+    return "Female";
+  }
+  if (lowered === "male" || lowered === "m") {
+    return "Male";
+  }
+  return value;
+}
+
 export function attendanceStatusLabel(status: string) {
   switch (status) {
     case "PRESENT":

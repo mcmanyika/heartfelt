@@ -5,7 +5,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { getMyDepartments } from "@/lib/services/department.service";
 import { listMyFamily } from "@/lib/services/family.service";
 import { getPortalContext } from "@/lib/services/portal.service";
-import { familyRelationshipLabel, formatDate, membershipStatusLabel } from "@/lib/utils/format";
+import { familyRelationshipLabel, formatDate, genderLabel, membershipStatusLabel } from "@/lib/utils/format";
 
 export default async function MemberProfilePage() {
   const { current, member, location } = await getPortalContext();
@@ -37,7 +37,7 @@ export default async function MemberProfilePage() {
             </div>
             <div>
               <dt className="text-gray-500">Gender</dt>
-              <dd className="text-navy">{member?.gender || "—"}</dd>
+              <dd className="text-navy">{genderLabel(member?.gender)}</dd>
             </div>
             <div>
               <dt className="text-gray-500">Address</dt>

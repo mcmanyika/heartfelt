@@ -8,7 +8,7 @@ import {
   createMemberAction,
   updateMemberAction,
 } from "@/lib/services/member.actions";
-import { memberSchema, type MemberInput } from "@/lib/validators/member.schema";
+import { GENDERS, memberSchema, type MemberInput } from "@/lib/validators/member.schema";
 
 type LocationOption = {
   id: string;
@@ -138,7 +138,14 @@ export function MemberForm({
           />
         </FormField>
         <FormField label="Gender" htmlFor="gender" error={errors.gender?.message}>
-          <input id="gender" className={fieldClassName} disabled={isPending} {...register("gender")} />
+          <select id="gender" className={fieldClassName} disabled={isPending} {...register("gender")}>
+            <option value="">Select gender</option>
+            {GENDERS.map((gender) => (
+              <option key={gender} value={gender}>
+                {gender}
+              </option>
+            ))}
+          </select>
         </FormField>
       </div>
 

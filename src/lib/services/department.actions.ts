@@ -82,6 +82,6 @@ export async function removeDepartmentMemberAction(departmentId: string, members
     return { error: result.error };
   }
 
-  revalidateDepartmentPaths(departmentId);
+  revalidateDepartmentPaths(departmentId, result.memberId);
   return { ok: true as const };
 }

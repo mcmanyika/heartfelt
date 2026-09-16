@@ -66,6 +66,7 @@ export type DepartmentMemberOption = {
 
 export type MemberDepartmentSummary = {
   id: string;
+  membership_id: string;
   name: string;
   role: DepartmentMemberRole;
 };
@@ -777,7 +778,7 @@ export async function removeDepartmentMember(departmentId: string, membershipId:
     return { error: left.error };
   }
 
-  return { ok: true as const };
+  return { ok: true as const, memberId: row.member_id };
 }
 
 export async function getMemberDepartments(memberId: string) {
@@ -785,7 +786,7 @@ export async function getMemberDepartments(memberId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("department_members")
-    .select("role, departments(id, name)")
+    .select("id, role, departments(id, name)")
     .eq("member_id", memberId)
     .is("left_at", null)
     .order("joined_at", { ascending: true });
@@ -805,12 +806,43 @@ export async function getMemberDepartments(memberId: string) {
       return [
         {
           id: departmentRow.id,
+          membership_id: String(row.id),
           name: departmentRow.name,
           role: row.role as DepartmentMemberRole,
         },
       ];
     }),
   };
+}
+
+export type AssignableDepartmentOption = {
+  id: string;
+  name: string;
+  code: string | null;
+};
+
+export async function listAssignableDepartments(locationId: string) {
+  const current = await requireRole(DEPARTMENT_ROLES);
+  if (!canMutateDepartment(current, locationId)) {
+    return { departments: [] as AssignableDepartmentOption[] };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("departments")
+    .select("id, name, code")
+    .eq("organization_id", current.organizationId)
+    .eq("location_id", locationId)
+    .eq("status", "ACTIVE")
+    .order("name")
+    .limit(100);
+
+  if (error) {
+    logServerError("department.assignable", error);
+    return { departments: [] as AssignableDepartmentOption[], error: "Unable to load departments." };
+  }
+
+  return { departments: (data ?? []) as AssignableDepartmentOption[] };
 }
 
 export async function getMyDepartments() {
