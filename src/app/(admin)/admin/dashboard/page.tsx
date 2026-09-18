@@ -62,30 +62,30 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
         </button>
       </form>
 
-      <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        <StatCard label="Total Members" value={String(data.memberCount)} hint={scope} />
-        <div className="xl:col-span-2">
+      <section aria-label="Key figures" className="space-y-4">
+        <StatCard
+          label="Total Giving"
+          value={<GivingTotalsValue totals={data.summary.totals} layout="columns" />}
+          hint={scope}
+        />
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Total Members" value={String(data.memberCount)} hint={scope} />
           <StatCard
-            label="Total Giving"
-            value={<GivingTotalsValue totals={data.summary.totals} />}
-            hint={scope}
+            label="Total Transactions"
+            value={String(data.summary.successfulCount)}
+            hint={`${data.summary.totalCount} recorded in range`}
+          />
+          <StatCard
+            label="Active Locations"
+            value={String(data.activeLocations)}
+            hint={data.selection.location ? "Selected campus" : "Across the organization"}
+          />
+          <StatCard
+            label="Online Terminals"
+            value={String(data.onlineTerminals)}
+            hint={`${data.terminalCount} registered`}
           />
         </div>
-        <StatCard
-          label="Total Transactions"
-          value={String(data.summary.successfulCount)}
-          hint={`${data.summary.totalCount} recorded in range`}
-        />
-        <StatCard
-          label="Active Locations"
-          value={String(data.activeLocations)}
-          hint={data.selection.location ? "Selected campus" : "Across the organization"}
-        />
-        <StatCard
-          label="Online Terminals"
-          value={String(data.onlineTerminals)}
-          hint={`${data.terminalCount} registered`}
-        />
       </section>
 
       <DashboardCharts

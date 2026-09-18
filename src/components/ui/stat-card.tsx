@@ -12,9 +12,9 @@ export function StatCard({ label, value = "—", hint, loading = false }: StatCa
       {loading ? (
         <div className="mt-3 h-8 w-24 animate-pulse rounded bg-gray-200" />
       ) : (
-        <div className="mt-3 text-2xl font-semibold tracking-tight text-navy">{value}</div>
+        <div className="mt-3 min-w-0 flex-1 text-2xl font-semibold tracking-tight text-navy">{value}</div>
       )}
-      {hint ? <p className="mt-2 text-xs text-gray-500">{hint}</p> : null}
+      {hint ? <p className="mt-3 text-xs text-gray-500">{hint}</p> : null}
     </article>
   );
 }
