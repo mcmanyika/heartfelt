@@ -32,11 +32,13 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
     }));
   const billing = data.current.isSuperAdmin ? await getPackageBilling() : null;
   const billingNotice =
-    params.billing === "success"
-      ? "Stripe accepted the checkout. The payment appears here after Stripe confirms it."
-      : params.billing === "cancelled"
-        ? "Checkout was cancelled. No payment was recorded."
-        : null;
+    params.billing === "cancelled"
+      ? "Checkout was cancelled. No payment was recorded."
+      : params.billing === "success" && billing?.account?.status === "ACTIVE"
+        ? "Payment confirmed."
+        : params.billing === "success"
+          ? "Stripe accepted the checkout. The payment appears here after Stripe confirms it."
+          : null;
 
   return (
     <>
@@ -151,6 +153,8 @@ function PackageBillingPanel({
   const account = billing.account;
   const statusLabel =
     account?.status === "ACTIVE" ? "Active" : account?.status === "PAST_DUE" ? "Past due" : "Unpaid";
+  const hasPendingPayment = billing.payments.some((payment) => payment.status === "PENDING");
+  const showCheckout = account?.status !== "ACTIVE" || hasPendingPayment;
 
   return (
     <section aria-label="Package billing" className="mb-5 rounded-2xl border border-border bg-card p-5">
@@ -171,9 +175,15 @@ function PackageBillingPanel({
         </p>
       ) : (
         <>
-          {billing.quoteError ? <p className="mt-3 text-sm text-gray-600">{billing.quoteError}</p> : null}
-          <PackageCheckoutForm quotes={billing.quotes} configured={billing.configured} />
-          <h3 className="mt-6 text-sm font-semibold text-navy">Payments</h3>
+          {showCheckout ? (
+            <>
+              {billing.quoteError ? <p className="mt-3 text-sm text-gray-600">{billing.quoteError}</p> : null}
+              <PackageCheckoutForm quotes={billing.quotes} configured={billing.configured} />
+            </>
+          ) : null}
+          <h3 className={showCheckout ? "mt-6 text-sm font-semibold text-navy" : "mt-4 text-sm font-semibold text-navy"}>
+            Payments
+          </h3>
           {billing.payments.length === 0 ? (
             <p className="mt-2 text-sm text-gray-600">No package payments yet.</p>
           ) : (
@@ -184,8 +194,8 @@ function PackageBillingPanel({
                     {formatAmount(payment.amountCents / 100, payment.currency.toUpperCase())}
                   </span>
                   <span className="text-gray-600">
-                    {packagePlanLabel(payment.plan)} · {payment.locationCount} location
-                    {payment.locationCount === 1 ? "" : "s"} · {paymentStatusLabel(payment.status)}
+                    {packagePlanLabel(payment.plan)} · {payment.locationCount}{" "}
+                    {payment.locationCount === 1 ? "location" : "locations"} · {paymentStatusLabel(payment.status)}
                   </span>
                   <span className="text-xs text-gray-500">{formatDateTime(payment.paidAt ?? payment.createdAt)}</span>
                 </li>

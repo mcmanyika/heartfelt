@@ -10,6 +10,7 @@ import {
   type PackageQuote,
 } from "@/lib/billing/plans";
 import { getStripe, isStripeConfigured } from "@/lib/billing/stripe";
+import { markPackageCheckoutFailed, recordPackagePayment } from "@/lib/services/billing-webhook.service";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -112,9 +113,42 @@ function buildQuotes(billing: BillingRow | null, memberCounts: number[], periodS
   return { quotes, quoteError, locationCount };
 }
 
+async function reconcilePendingPayments(organizationId: string) {
+  const stripe = getStripe();
+  if (!stripe) {
+    return;
+  }
+
+  const admin = createAdminClient();
+  const pending = await admin
+    .from("package_payments")
+    .select("stripe_checkout_session_id")
+    .eq("organization_id", organizationId)
+    .eq("status", "PENDING");
+
+  if (pending.error) {
+    logServerError("billing.reconcile", pending.error);
+    return;
+  }
+
+  for (const row of (pending.data ?? []) as Array<{ stripe_checkout_session_id: string }>) {
+    try {
+      const session = await stripe.checkout.sessions.retrieve(row.stripe_checkout_session_id);
+      if (session.payment_status === "paid" || session.payment_status === "no_payment_required") {
+        await recordPackagePayment(session);
+      } else if (session.status === "expired") {
+        await markPackageCheckoutFailed(session.id);
+      }
+    } catch (error) {
+      logServerError("billing.reconcile", error);
+    }
+  }
+}
+
 export async function getPackageBilling(): Promise<PackageBillingView> {
   const current = await requireRole("SUPER_ADMIN");
   const configured = isStripeConfigured();
+  await reconcilePendingPayments(current.organizationId);
   const loaded = await loadQuoteContext(current.organizationId);
 
   if (missingTable(loaded.billingResult.error) || missingTable(loaded.locationsResult.error)) {
