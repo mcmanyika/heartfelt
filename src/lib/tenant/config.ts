@@ -11,6 +11,7 @@ export const RESERVED_TENANT_SLUGS = new Set([
   "admin",
   "mail",
   "start",
+  "packages",
   "status",
   "support",
   "login",

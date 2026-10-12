@@ -7,10 +7,13 @@ import { GivingTotalsValue } from "@/components/ui/giving-totals";
 import { SearchInput } from "@/components/ui/search-input";
 import { StatCard } from "@/components/ui/stat-card";
 import { getDashboardData, parseDashboardRange } from "@/lib/services/dashboard.service";
+import { packagePlanLabel } from "@/lib/billing/plans";
+import { getPackageBilling, type PackageBillingView } from "@/lib/services/billing.service";
+import { PackageCheckoutForm } from "@/components/admin/package-checkout-form";
 import { formatAmount, formatDate, formatDateTime, paymentMethodLabel } from "@/lib/utils/format";
 
 type DashboardPageProps = {
-  searchParams: Promise<{ from?: string; to?: string; q?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; q?: string; billing?: string }>;
 };
 
 export default async function AdminDashboardPage({ searchParams }: DashboardPageProps) {
@@ -27,6 +30,13 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
       month,
       ...data.summary.byMonth[month],
     }));
+  const billing = data.current.isSuperAdmin ? await getPackageBilling() : null;
+  const billingNotice =
+    params.billing === "success"
+      ? "Stripe accepted the checkout. The payment appears here after Stripe confirms it."
+      : params.billing === "cancelled"
+        ? "Checkout was cancelled. No payment was recorded."
+        : null;
 
   return (
     <>
@@ -61,6 +71,10 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
           Apply filters
         </button>
       </form>
+
+      {billing ? (
+        <PackageBillingPanel billing={billing} notice={billingNotice} />
+      ) : null}
 
       <section aria-label="Key figures" className="space-y-4">
         <StatCard
@@ -125,6 +139,76 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
       </section>
     </>
   );
+}
+
+function PackageBillingPanel({
+  billing,
+  notice,
+}: {
+  billing: PackageBillingView;
+  notice: string | null;
+}) {
+  const account = billing.account;
+  const statusLabel =
+    account?.status === "ACTIVE" ? "Active" : account?.status === "PAST_DUE" ? "Past due" : "Unpaid";
+
+  return (
+    <section aria-label="Package billing" className="mb-5 rounded-2xl border border-border bg-card p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-navy">Package billing</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            {account?.plan ? packagePlanLabel(account.plan) : "No package"} · {statusLabel}
+            {account?.currentPeriodEnd ? ` · through ${formatDateTime(account.currentPeriodEnd)}` : ""}
+          </p>
+        </div>
+        <p className="text-xs font-medium tracking-wide text-gray-500 uppercase">{statusLabel}</p>
+      </div>
+      {notice ? <p className="mt-3 text-sm text-navy">{notice}</p> : null}
+      {billing.unavailable ? (
+        <p className="mt-3 text-sm text-gray-600">
+          Package billing is not available until the billing migration is applied.
+        </p>
+      ) : (
+        <>
+          {billing.quoteError ? <p className="mt-3 text-sm text-gray-600">{billing.quoteError}</p> : null}
+          <PackageCheckoutForm quotes={billing.quotes} configured={billing.configured} />
+          <h3 className="mt-6 text-sm font-semibold text-navy">Payments</h3>
+          {billing.payments.length === 0 ? (
+            <p className="mt-2 text-sm text-gray-600">No package payments yet.</p>
+          ) : (
+            <ul className="mt-2 divide-y divide-border">
+              {billing.payments.map((payment) => (
+                <li key={payment.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2 text-sm">
+                  <span className="font-medium text-navy">
+                    {formatAmount(payment.amountCents / 100, payment.currency.toUpperCase())}
+                  </span>
+                  <span className="text-gray-600">
+                    {packagePlanLabel(payment.plan)} · {payment.locationCount} location
+                    {payment.locationCount === 1 ? "" : "s"} · {paymentStatusLabel(payment.status)}
+                  </span>
+                  <span className="text-xs text-gray-500">{formatDateTime(payment.paidAt ?? payment.createdAt)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+function paymentStatusLabel(status: PackageBillingView["payments"][number]["status"]) {
+  switch (status) {
+    case "PAID":
+      return "Paid";
+    case "PENDING":
+      return "Pending";
+    case "FAILED":
+      return "Failed";
+    case "REFUNDED":
+      return "Refunded";
+  }
 }
 
 function FeedCard({

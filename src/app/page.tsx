@@ -71,6 +71,12 @@ export default async function HomePage() {
             Sign in to your church
           </Link>
           <Link
+            href="/packages"
+            className="inline-flex items-center justify-center rounded-lg border border-border px-5 py-2.5 text-sm font-semibold text-navy"
+          >
+            View packages
+          </Link>
+          <Link
             href="/start"
             className="inline-flex items-center justify-center rounded-lg border border-border px-5 py-2.5 text-sm font-semibold text-navy"
           >

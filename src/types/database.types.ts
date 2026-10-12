@@ -935,6 +935,50 @@ export type Database = {
           },
         ];
       };
+      organization_billing: {
+        Row: {
+          branches_setup: number;
+          current_period_end: string | null;
+          headquarters_paid: boolean;
+          location_count: number;
+          organization_id: string;
+          plan: string | null;
+          status: string;
+          stripe_customer_id: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          branches_setup?: number;
+          current_period_end?: string | null;
+          headquarters_paid?: boolean;
+          location_count?: number;
+          organization_id: string;
+          plan?: string | null;
+          status?: string;
+          stripe_customer_id?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          branches_setup?: number;
+          current_period_end?: string | null;
+          headquarters_paid?: boolean;
+          location_count?: number;
+          organization_id?: string;
+          plan?: string | null;
+          status?: string;
+          stripe_customer_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "organization_billing_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: true;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       organizations: {
         Row: {
           created_at: string;
@@ -970,6 +1014,71 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      package_payments: {
+        Row: {
+          amount_cents: number;
+          branch_setup_count: number;
+          created_at: string;
+          currency: string;
+          id: string;
+          includes_headquarters: boolean;
+          location_count: number;
+          organization_id: string;
+          paid_at: string | null;
+          period_end: string | null;
+          plan: string;
+          setup_cents: number;
+          status: string;
+          stripe_checkout_session_id: string;
+          stripe_payment_intent_id: string | null;
+          subscription_cents: number;
+        };
+        Insert: {
+          amount_cents: number;
+          branch_setup_count?: number;
+          created_at?: string;
+          currency?: string;
+          id?: string;
+          includes_headquarters?: boolean;
+          location_count: number;
+          organization_id: string;
+          paid_at?: string | null;
+          period_end?: string | null;
+          plan: string;
+          setup_cents: number;
+          status?: string;
+          stripe_checkout_session_id: string;
+          stripe_payment_intent_id?: string | null;
+          subscription_cents: number;
+        };
+        Update: {
+          amount_cents?: number;
+          branch_setup_count?: number;
+          created_at?: string;
+          currency?: string;
+          id?: string;
+          includes_headquarters?: boolean;
+          location_count?: number;
+          organization_id?: string;
+          paid_at?: string | null;
+          period_end?: string | null;
+          plan?: string;
+          setup_cents?: number;
+          status?: string;
+          stripe_checkout_session_id?: string;
+          stripe_payment_intent_id?: string | null;
+          subscription_cents?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "package_payments_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       payment_terminals: {
         Row: {

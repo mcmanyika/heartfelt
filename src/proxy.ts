@@ -34,7 +34,11 @@ export function proxy(request: NextRequest) {
   const pathSlug = tenantSlugFromPathname(url.pathname);
   const querySlug = url.searchParams.get("church");
   const cookieSlug = request.cookies.get(TENANT_COOKIE)?.value;
-  const isApexOnly = url.pathname === "/start" || url.pathname.startsWith("/start/");
+  const isApexOnly =
+    url.pathname === "/start" ||
+    url.pathname.startsWith("/start/") ||
+    url.pathname === "/packages" ||
+    url.pathname.startsWith("/packages/");
 
   if (url.searchParams.has("changeChurch")) {
     url.searchParams.delete("changeChurch");
