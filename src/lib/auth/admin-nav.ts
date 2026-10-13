@@ -18,8 +18,10 @@ export type AdminNavItem = {
     | "reports"
     | "audit"
     | "users"
-    | "settings";
+    | "settings"
+    | "subscriptions";
   roles: readonly AppRole[];
+  platformOnly?: boolean;
   matchPrefixes?: readonly string[];
 };
 
@@ -102,6 +104,13 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     label: "Users",
     icon: "users",
     roles: ["SUPER_ADMIN"],
+  },
+  {
+    href: "/admin/subscriptions",
+    label: "Subscriptions",
+    icon: "subscriptions",
+    roles: STAFF_ROLES,
+    platformOnly: true,
   },
   {
     href: "/admin/settings",

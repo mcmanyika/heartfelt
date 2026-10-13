@@ -8,6 +8,7 @@ import {
   Building2,
   CalendarDays,
   CircleDollarSign,
+  CreditCard,
   LayoutDashboard,
   Megaphone,
   MonitorSmartphone,
@@ -38,6 +39,7 @@ const ICONS = {
   audit: ScrollText,
   users: UserCog,
   settings: Settings,
+  subscriptions: CreditCard,
 };
 
 export type AdminSidebarUser = {
