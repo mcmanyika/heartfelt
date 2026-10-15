@@ -28,7 +28,9 @@ export function GivingTable({ rows }: GivingTableProps) {
             <td className="px-4 py-3">{row.category_name}</td>
             <td className="px-4 py-3">{formatAmount(row.amount, row.currency)}</td>
             <td className="px-4 py-3">{row.currency}</td>
-            <td className="px-4 py-3">{paymentMethodLabel(row.payment_method)}</td>
+            <td className="px-4 py-3">
+              {row.transaction_reference.startsWith("cs_") ? "Stripe" : paymentMethodLabel(row.payment_method)}
+            </td>
             <td className="px-4 py-3">
               <StatusBadge status={row.status} />
             </td>

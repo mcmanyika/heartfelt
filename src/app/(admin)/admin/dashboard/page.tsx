@@ -136,6 +136,10 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
             title: member.name,
             meta: `${member.membership_number} · ${member.location_name}`,
             extra: formatDate(member.date_joined),
+            href:
+              data.current.isSuperAdmin || data.current.isLocationAdmin
+                ? `/admin/members/${member.id}`
+                : undefined,
           }))}
         />
       </section>
@@ -230,7 +234,7 @@ function FeedCard({
   title: string;
   href?: string;
   empty: string;
-  items: Array<{ id: string; title: string; meta: string; extra: string }>;
+  items: Array<{ id: string; title: string; meta: string; extra: string; href?: string }>;
 }) {
   return (
     <div className="space-y-3">
@@ -246,13 +250,26 @@ function FeedCard({
         <EmptyState title={empty} />
       ) : (
         <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
-          {items.map((item) => (
-            <li key={item.id} className="px-4 py-3">
-              <p className="text-sm font-medium text-navy">{item.title}</p>
-              <p className="text-xs text-gray-500">{item.meta}</p>
-              <p className="text-xs text-gray-500">{item.extra}</p>
-            </li>
-          ))}
+          {items.map((item) => {
+            const content = (
+              <>
+                <p className="text-sm font-medium text-navy">{item.title}</p>
+                <p className="text-xs text-gray-500">{item.meta}</p>
+                <p className="text-xs text-gray-500">{item.extra}</p>
+              </>
+            );
+            return (
+              <li key={item.id}>
+                {item.href ? (
+                  <Link href={item.href} className="block px-4 py-3 hover:bg-background">
+                    {content}
+                  </Link>
+                ) : (
+                  <div className="px-4 py-3">{content}</div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

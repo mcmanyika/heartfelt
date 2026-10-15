@@ -5,6 +5,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
 import { parseListPage } from "@/lib/admin/list-page";
 import { withQuery } from "@/lib/admin/query-string";
+import { reconcileMyPendingGiving } from "@/lib/services/member-giving.service";
 import { listMyGiving } from "@/lib/services/portal.service";
 import { formatAmount } from "@/lib/utils/format";
 import { TRANSACTION_STATUSES } from "@/lib/validators/giving.schema";
@@ -16,6 +17,7 @@ type MemberGivingPageProps = {
 
 export default async function MemberGivingPage({ searchParams }: MemberGivingPageProps) {
   const params = await searchParams;
+  await reconcileMyPendingGiving();
   const status = TRANSACTION_STATUSES.includes(params.status as TransactionStatus)
     ? (params.status as TransactionStatus)
     : "";
