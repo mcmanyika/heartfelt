@@ -59,6 +59,22 @@ export function GivingTrendChart({
   );
 }
 
+export function MembersByGenderChart({
+  membersByGender,
+}: {
+  membersByGender: Array<{ name: string; value: number }>;
+}) {
+  return (
+    <ChartCard title="Members by gender" className="h-full">
+      {membersByGender.length === 0 ? (
+        <EmptyChart message="No members in this scope" />
+      ) : (
+        <LegendPieChart data={membersByGender} emptyLabel="All genders hidden" />
+      )}
+    </ChartCard>
+  );
+}
+
 export function DashboardCharts({
   givingOverTime,
   currencies,
@@ -103,15 +119,25 @@ export function DashboardCharts({
       </ChartCard>
 
       <ChartCard title="Transactions by payment method">
-        {byMethod.length === 0 ? <EmptyChart /> : <PaymentMethodChart byMethod={byMethod} />}
+        {byMethod.length === 0 ? (
+          <EmptyChart />
+        ) : (
+          <LegendPieChart data={byMethod} emptyLabel="All methods hidden" />
+        )}
       </ChartCard>
     </section>
   );
 }
 
-function PaymentMethodChart({ byMethod }: { byMethod: Array<{ name: string; value: number }> }) {
+function LegendPieChart({
+  data,
+  emptyLabel,
+}: {
+  data: Array<{ name: string; value: number }>;
+  emptyLabel: string;
+}) {
   const [hidden, setHidden] = useState<Set<string>>(new Set());
-  const chartData = byMethod.map((entry) => ({
+  const chartData = data.map((entry) => ({
     name: entry.name,
     value: hidden.has(entry.name) ? 0 : entry.value,
   }));
@@ -133,7 +159,7 @@ function PaymentMethodChart({ byMethod }: { byMethod: Array<{ name: string; valu
     <div className="flex h-[220px] items-center gap-4">
       <div className="h-full min-w-0 flex-1">
         {allHidden ? (
-          <div className="flex h-full items-center justify-center text-sm text-gray-500">All methods hidden</div>
+          <div className="flex h-full items-center justify-center text-sm text-gray-500">{emptyLabel}</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -155,7 +181,7 @@ function PaymentMethodChart({ byMethod }: { byMethod: Array<{ name: string; valu
         )}
       </div>
       <ul className="shrink-0 space-y-1 text-sm">
-        {byMethod.map((entry, index) => {
+        {data.map((entry, index) => {
           const inactive = hidden.has(entry.name);
           return (
             <li key={entry.name}>
@@ -184,19 +210,27 @@ function PaymentMethodChart({ byMethod }: { byMethod: Array<{ name: string; valu
   );
 }
 
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+function ChartCard({
+  title,
+  children,
+  className,
+}: {
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className={cn("rounded-2xl border border-border bg-card p-5", className)}>
       <p className="text-sm font-semibold text-navy">{title}</p>
       <div className="mt-4">{children}</div>
     </div>
   );
 }
 
-function EmptyChart() {
+function EmptyChart({ message = "No giving in this range" }: { message?: string }) {
   return (
     <div className="flex h-40 items-center justify-center rounded-xl bg-background text-sm text-gray-500">
-      No giving in this range
+      {message}
     </div>
   );
 }

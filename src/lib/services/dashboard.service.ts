@@ -47,6 +47,14 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
     membersQuery = membersQuery.eq("location_id", locationId);
   }
 
+  let membersByGenderQuery = supabase
+    .from("members")
+    .select("gender")
+    .eq("organization_id", current.organizationId);
+  if (locationId) {
+    membersByGenderQuery = membersByGenderQuery.eq("location_id", locationId);
+  }
+
   let terminalsQuery = supabase
     .from("payment_terminals")
     .select("id, status")
@@ -91,9 +99,10 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
     recentGivingQuery = recentGivingQuery.eq("location_id", locationId);
   }
 
-  const [members, terminals, locations, recentMembers, recentGiving, scoped] =
+  const [members, membersByGenderRows, terminals, locations, recentMembers, recentGiving, scoped] =
     await Promise.all([
       membersQuery,
+      membersByGenderQuery,
       terminalsQuery,
       locationsQuery,
       recentMembersQuery,
@@ -102,6 +111,7 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
     ]);
 
   if (members.error) logServerError("dashboard.members", members.error);
+  if (membersByGenderRows.error) logServerError("dashboard.membersByGender", membersByGenderRows.error);
   if (terminals.error) logServerError("dashboard.terminals", terminals.error);
   if (locations.error) logServerError("dashboard.locations", locations.error);
   if (recentMembers.error) logServerError("dashboard.recentMembers", recentMembers.error);
@@ -124,6 +134,16 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
     members: location.members?.[0]?.count ?? 0,
   }));
 
+  const genderCounts = new Map<string, number>();
+  for (const row of (membersByGenderRows.data ?? []) as Array<{ gender: string | null }>) {
+    const label =
+      row.gender === "Female" || row.gender === "Male" ? row.gender : "Unspecified";
+    genderCounts.set(label, (genderCounts.get(label) ?? 0) + 1);
+  }
+  const membersByGender = (["Female", "Male", "Unspecified"] as const)
+    .map((name) => ({ name, value: genderCounts.get(name) ?? 0 }))
+    .filter((entry) => entry.value > 0);
+
   return {
     current,
     selection,
@@ -134,6 +154,7 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
     terminalCount: ((terminals.data ?? []) as unknown[]).length,
     summary,
     membersByLocation,
+    membersByGender,
     recentMembers: ((recentMembers.data ?? []) as Array<Record<string, unknown>>).map((member) => {
       const location = member.locations as
         | { name: string; code: string }
