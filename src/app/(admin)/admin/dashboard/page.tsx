@@ -75,33 +75,41 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
       </form>
 
       {billing ? (
-        <PackageBillingPanel billing={billing} notice={billingNotice} />
-      ) : null}
+        <section aria-label="Billing and giving" className="mb-5 grid gap-4 md:grid-cols-2">
+          <StatCard
+            label="Total Giving"
+            value={<GivingTotalsValue totals={data.summary.totals} layout="columns" />}
+            hint={scope}
+          />
+          <PackageBillingPanel billing={billing} notice={billingNotice} />
+        </section>
+      ) : (
+        <section aria-label="Giving" className="mb-5">
+          <StatCard
+            label="Total Giving"
+            value={<GivingTotalsValue totals={data.summary.totals} layout="columns" />}
+            hint={scope}
+          />
+        </section>
+      )}
 
-      <section aria-label="Key figures" className="space-y-4">
+      <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Total Members" value={String(data.memberCount)} hint={scope} />
         <StatCard
-          label="Total Giving"
-          value={<GivingTotalsValue totals={data.summary.totals} layout="columns" />}
-          hint={scope}
+          label="Total Transactions"
+          value={String(data.summary.successfulCount)}
+          hint={`${data.summary.totalCount} recorded in range`}
         />
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Total Members" value={String(data.memberCount)} hint={scope} />
-          <StatCard
-            label="Total Transactions"
-            value={String(data.summary.successfulCount)}
-            hint={`${data.summary.totalCount} recorded in range`}
-          />
-          <StatCard
-            label="Active Locations"
-            value={String(data.activeLocations)}
-            hint={data.selection.location ? "Selected campus" : "Across the organization"}
-          />
-          <StatCard
-            label="Online Terminals"
-            value={String(data.onlineTerminals)}
-            hint={`${data.terminalCount} registered`}
-          />
-        </div>
+        <StatCard
+          label="Active Locations"
+          value={String(data.activeLocations)}
+          hint={data.selection.location ? "Selected campus" : "Across the organization"}
+        />
+        <StatCard
+          label="Online Terminals"
+          value={String(data.onlineTerminals)}
+          hint={`${data.terminalCount} registered`}
+        />
       </section>
 
       <DashboardCharts
@@ -161,7 +169,7 @@ function PackageBillingPanel({
   const showCheckout = account?.status !== "ACTIVE" || hasPendingPayment;
 
   return (
-    <section aria-label="Package billing" className="mb-5 rounded-2xl border border-border bg-card p-5">
+    <section aria-label="Package billing" className="h-full rounded-2xl border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-navy">Package billing</h2>
