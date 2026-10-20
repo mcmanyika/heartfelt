@@ -12,6 +12,7 @@ export type MemberFamilyLink = Tables<"member_family_links">;
 export type GivingCategory = Tables<"giving_categories">;
 export type GivingTransaction = Tables<"giving_transactions">;
 export type PaymentTerminal = Tables<"payment_terminals">;
+export type PaymentButton = Tables<"payment_buttons">;
 export type Event = Tables<"events">;
 export type EventRegistration = Tables<"event_registrations">;
 export type CellGroup = Tables<"cell_groups">;

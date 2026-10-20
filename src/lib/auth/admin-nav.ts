@@ -13,6 +13,7 @@ export type AdminNavItem = {
     | "registrations"
     | "giving"
     | "terminals"
+    | "paymentButtons"
     | "events"
     | "announcements"
     | "reports"
@@ -73,6 +74,12 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     href: "/admin/terminals",
     label: "Payment Terminals",
     icon: "terminals",
+    roles: STAFF_ROLES,
+  },
+  {
+    href: "/admin/payment-buttons",
+    label: "Payment buttons",
+    icon: "paymentButtons",
     roles: STAFF_ROLES,
   },
   {
@@ -141,6 +148,7 @@ export const ADMIN_PAGE_ROLES = {
   registrations: ["SUPER_ADMIN", "LOCATION_ADMIN"] as const,
   giving: STAFF_ROLES,
   terminals: STAFF_ROLES,
+  paymentButtons: STAFF_ROLES,
   events: ["SUPER_ADMIN", "LOCATION_ADMIN"] as const,
   announcements: ["SUPER_ADMIN", "LOCATION_ADMIN"] as const,
   reports: STAFF_ROLES,

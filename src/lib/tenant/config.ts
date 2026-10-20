@@ -18,6 +18,7 @@ export const RESERVED_TENANT_SLUGS = new Set([
   "register",
   "auth",
   "terminal",
+  "give",
   "member",
   "forbidden",
   "static",

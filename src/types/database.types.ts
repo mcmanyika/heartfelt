@@ -620,6 +620,7 @@ export type Database = {
           member_id: string | null;
           notes: string | null;
           organization_id: string;
+          payment_button_id: string | null;
           payment_method: Database["public"]["Enums"]["payment_method"];
           status: Database["public"]["Enums"]["transaction_status"];
           terminal_id: string | null;
@@ -637,6 +638,7 @@ export type Database = {
           member_id?: string | null;
           notes?: string | null;
           organization_id: string;
+          payment_button_id?: string | null;
           payment_method: Database["public"]["Enums"]["payment_method"];
           status?: Database["public"]["Enums"]["transaction_status"];
           terminal_id?: string | null;
@@ -654,6 +656,7 @@ export type Database = {
           member_id?: string | null;
           notes?: string | null;
           organization_id?: string;
+          payment_button_id?: string | null;
           payment_method?: Database["public"]["Enums"]["payment_method"];
           status?: Database["public"]["Enums"]["transaction_status"];
           terminal_id?: string | null;
@@ -694,6 +697,13 @@ export type Database = {
             columns: ["organization_id"];
             isOneToOne: false;
             referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "giving_transactions_payment_button_id_fkey";
+            columns: ["payment_button_id"];
+            isOneToOne: false;
+            referencedRelation: "payment_buttons";
             referencedColumns: ["id"];
           },
           {
@@ -1014,6 +1024,89 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      payment_buttons: {
+        Row: {
+          id: string;
+          organization_id: string;
+          location_id: string;
+          giving_category_id: string;
+          public_token: string;
+          name: string;
+          button_label: string;
+          amount_mode: "FIXED" | "OPEN";
+          amount: number | null;
+          currency: string;
+          active: boolean;
+          success_message: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          location_id: string;
+          giving_category_id: string;
+          public_token: string;
+          name: string;
+          button_label?: string;
+          amount_mode: "FIXED" | "OPEN";
+          amount?: number | null;
+          currency: string;
+          active?: boolean;
+          success_message?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          location_id?: string;
+          giving_category_id?: string;
+          public_token?: string;
+          name?: string;
+          button_label?: string;
+          amount_mode?: "FIXED" | "OPEN";
+          amount?: number | null;
+          currency?: string;
+          active?: boolean;
+          success_message?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payment_buttons_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payment_buttons_location_id_fkey";
+            columns: ["location_id"];
+            isOneToOne: false;
+            referencedRelation: "locations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payment_buttons_giving_category_id_fkey";
+            columns: ["giving_category_id"];
+            isOneToOne: false;
+            referencedRelation: "giving_categories";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payment_buttons_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       package_payments: {
         Row: {

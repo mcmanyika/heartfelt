@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { recordPackagePayment, markPackageCheckoutFailed, markPackagePaymentRefunded } from "@/lib/services/billing-webhook.service";
 import { markMemberGivingFailed, markMemberGivingRefunded, recordMemberGivingPayment } from "@/lib/services/member-giving.service";
+import {
+  markEmbedGivingFailed,
+  markEmbedGivingRefunded,
+  recordEmbedGivingPayment,
+} from "@/lib/services/payment-button.service";
 import { getStripe, stripeWebhookSecret } from "@/lib/billing/stripe";
 import { logServerError } from "@/lib/utils/log-server-error";
 
@@ -32,6 +37,8 @@ export async function POST(request: Request) {
       if (session.payment_status === "paid" || session.payment_status === "no_payment_required") {
         if (session.metadata?.kind === "member_giving") {
           await recordMemberGivingPayment(session);
+        } else if (session.metadata?.kind === "embed_giving") {
+          await recordEmbedGivingPayment(session);
         } else {
           await recordPackagePayment(session);
         }
@@ -40,6 +47,8 @@ export async function POST(request: Request) {
       const session = event.data.object as Stripe.Checkout.Session;
       if (session.metadata?.kind === "member_giving") {
         await markMemberGivingFailed(session.id);
+      } else if (session.metadata?.kind === "embed_giving") {
+        await markEmbedGivingFailed(session.id);
       } else {
         await markPackageCheckoutFailed(session.id);
       }
@@ -49,6 +58,7 @@ export async function POST(request: Request) {
       if (paymentIntentId) {
         await markPackagePaymentRefunded(paymentIntentId);
         await markMemberGivingRefunded(paymentIntentId);
+        await markEmbedGivingRefunded(paymentIntentId);
       }
     }
   } catch (error) {
