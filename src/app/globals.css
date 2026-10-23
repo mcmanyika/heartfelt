@@ -30,6 +30,15 @@ body {
   font-family: var(--font-geist-sans), Helvetica, Arial, sans-serif;
 }
 
+@layer base {
+  a[href],
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+}
+
 .terminal-shell {
   min-height: 100%;
   min-height: 100dvh;

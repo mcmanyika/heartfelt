@@ -5,20 +5,20 @@ import { formatAmount, formatDateTime, paymentMethodLabel } from "@/lib/utils/fo
 
 type GivingTableProps = {
   rows: PortalGivingRow[];
+  compact?: boolean;
 };
 
-export function GivingTable({ rows }: GivingTableProps) {
+export function GivingTable({ rows, compact = false }: GivingTableProps) {
   return (
-    <DataTable isEmpty={rows.length === 0} emptyTitle="No giving history yet">
+    <DataTable isEmpty={rows.length === 0} emptyTitle="No giving yet">
       <DataTableHead>
         <tr>
           <th className="px-4 py-3">Date</th>
           <th className="px-4 py-3">Category</th>
           <th className="px-4 py-3">Amount</th>
-          <th className="px-4 py-3">Currency</th>
-          <th className="px-4 py-3">Payment method</th>
+          {!compact ? <th className="px-4 py-3">Method</th> : null}
           <th className="px-4 py-3">Status</th>
-          <th className="px-4 py-3">Reference</th>
+          {!compact ? <th className="px-4 py-3">Reference</th> : null}
         </tr>
       </DataTableHead>
       <DataTableBody>
@@ -27,14 +27,17 @@ export function GivingTable({ rows }: GivingTableProps) {
             <td className="px-4 py-3">{formatDateTime(row.created_at)}</td>
             <td className="px-4 py-3">{row.category_name}</td>
             <td className="px-4 py-3">{formatAmount(row.amount, row.currency)}</td>
-            <td className="px-4 py-3">{row.currency}</td>
-            <td className="px-4 py-3">
-              {row.transaction_reference.startsWith("cs_") ? "Stripe" : paymentMethodLabel(row.payment_method)}
-            </td>
+            {!compact ? (
+              <td className="px-4 py-3">
+                {row.transaction_reference.startsWith("cs_")
+                  ? "Stripe"
+                  : paymentMethodLabel(row.payment_method)}
+              </td>
+            ) : null}
             <td className="px-4 py-3">
               <StatusBadge status={row.status} />
             </td>
-            <td className="px-4 py-3">{row.transaction_reference}</td>
+            {!compact ? <td className="px-4 py-3">{row.transaction_reference}</td> : null}
           </tr>
         ))}
       </DataTableBody>

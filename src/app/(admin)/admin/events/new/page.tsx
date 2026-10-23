@@ -28,10 +28,15 @@ export default async function NewEventPage() {
           location_id: locationId,
           title: "",
           description: "",
+          attendance_mode: "LIVE",
           venue: "",
+          online_url: "",
           start_date: "",
           end_date: "",
           registration_required: false,
+          is_paid: false,
+          price: "",
+          currency: "",
           capacity: "",
         }}
       />

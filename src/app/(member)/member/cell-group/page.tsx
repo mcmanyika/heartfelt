@@ -1,30 +1,45 @@
-import { EmptyState } from "@/components/ui/empty-state";
+import { CellGroupJoinRequests } from "@/components/member/cell-group-join-requests";
+import { MemberCellGroupEditor } from "@/components/member/member-cell-group-editor";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { getMyCellGroup } from "@/lib/services/cell-group.service";
+import {
+  getMyCellGroup,
+  listLedCellGroupJoinRequests,
+  listMyCampusCellGroups,
+} from "@/lib/services/cell-group.service";
 import {
   attendanceStatusLabel,
   cellGroupMemberRoleLabel,
+  cellGroupMembershipStatusLabel,
   formatCellGroupMeeting,
   formatDate,
 } from "@/lib/utils/format";
 
 export default async function MemberCellGroupPage() {
-  const { group } = await getMyCellGroup();
+  const [{ group }, campus, led] = await Promise.all([
+    getMyCellGroup(),
+    listMyCampusCellGroups(),
+    listLedCellGroupJoinRequests(),
+  ]);
 
   return (
     <>
       <PageHeader
         title="Cell group"
-        description="Your home group, meeting time, and recent attendance."
+        description="Campus home groups · leaders confirm membership"
       />
 
-      {!group ? (
-        <EmptyState
-          title="No cell group assigned"
-          description="Ask your campus office to place you in a cell group."
-        />
-      ) : (
+      {led.requests.length > 0 ? (
+        <div className="mb-6">
+          <CellGroupJoinRequests requests={led.requests} />
+        </div>
+      ) : null}
+
+      <section className="mb-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <MemberCellGroupEditor current={group} available={campus.groups} />
+      </section>
+
+      {group && group.status === "ACTIVE" ? (
         <div className="space-y-6">
           <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -34,7 +49,13 @@ export default async function MemberCellGroupPage() {
                   {formatCellGroupMeeting(group.meeting_weekday, group.meeting_time)}
                 </p>
               </div>
-              <StatusBadge status={group.role} label={cellGroupMemberRoleLabel(group.role)} />
+              <div className="flex flex-wrap gap-2">
+                <StatusBadge
+                  status={group.status}
+                  label={cellGroupMembershipStatusLabel(group.status)}
+                />
+                <StatusBadge status={group.role} label={cellGroupMemberRoleLabel(group.role)} />
+              </div>
             </div>
             <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
               <div>
@@ -55,7 +76,10 @@ export default async function MemberCellGroupPage() {
             ) : (
               <ul className="mt-4 divide-y divide-border">
                 {group.attendance.map((row) => (
-                  <li key={row.meeting_date} className="flex items-center justify-between py-3 text-sm">
+                  <li
+                    key={row.meeting_date}
+                    className="flex items-center justify-between py-3 text-sm"
+                  >
                     <span className="text-navy">{formatDate(row.meeting_date)}</span>
                     <StatusBadge status={row.status} label={attendanceStatusLabel(row.status)} />
                   </li>
@@ -64,7 +88,7 @@ export default async function MemberCellGroupPage() {
             )}
           </section>
         </div>
-      )}
+      ) : null}
     </>
   );
 }

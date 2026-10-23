@@ -15,7 +15,11 @@ import {
   departmentSchema,
 } from "@/lib/validators/department.schema";
 import { myDepartmentSchema } from "@/lib/validators/profile.schema";
-import type { DepartmentMemberRole, DepartmentStatus } from "@/types";
+import type {
+  DepartmentMemberRole,
+  DepartmentMembershipStatus,
+  DepartmentStatus,
+} from "@/types";
 
 export const DEPARTMENT_ROLES = ["SUPER_ADMIN", "LOCATION_ADMIN"] as const;
 
@@ -56,6 +60,7 @@ export type DepartmentRosterRow = {
   member_name: string;
   membership_number: string;
   role: DepartmentMemberRole;
+  status: DepartmentMembershipStatus;
   joined_at: string;
 };
 
@@ -80,10 +85,21 @@ export type PortalDepartment = {
   venue: string | null;
   leader_name: string | null;
   role: DepartmentMemberRole;
+  status: DepartmentMembershipStatus;
+};
+
+export type DepartmentJoinRequest = {
+  id: string;
+  department_id: string;
+  department_name: string;
+  member_id: string;
+  member_name: string;
+  membership_number: string;
+  joined_at: string;
 };
 
 const DEPARTMENT_SELECT =
-  "id, organization_id, location_id, name, code, description, venue, leader_member_id, status, locations(name, code), members!departments_leader_member_id_fkey(first_name, last_name, membership_number), department_members(id, left_at)";
+  "id, organization_id, location_id, name, code, description, venue, leader_member_id, status, locations(name, code), members!departments_leader_member_id_fkey(first_name, last_name, membership_number), department_members(id, left_at, status)";
 
 function staffCampusId(current: CurrentUser) {
   return current.staffLocationIds[0] ?? current.primaryLocationId ?? null;
@@ -144,8 +160,14 @@ function mapLeaderName(row: Record<string, unknown>) {
 }
 
 function memberCount(row: Record<string, unknown>) {
-  const memberships = row.department_members as Array<{ id: string; left_at: string | null }> | null;
-  return (memberships ?? []).filter((item) => !item.left_at).length;
+  const memberships = row.department_members as Array<{
+    id: string;
+    left_at: string | null;
+    status?: string;
+  }> | null;
+  return (memberships ?? []).filter(
+    (item) => !item.left_at && (item.status ?? "ACTIVE") === "ACTIVE",
+  ).length;
 }
 
 function mapDepartment(row: Record<string, unknown>): DepartmentListItem {
@@ -300,17 +322,28 @@ async function findMembershipInDepartment(departmentId: string, memberId: string
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("department_members")
-    .select("id, left_at")
+    .select("id, left_at, status")
     .eq("department_id", departmentId)
     .eq("member_id", memberId)
     .maybeSingle();
 
   if (error) {
     logServerError("department.membershipGet", error);
-    return { membership: null as { id: string; left_at: string | null } | null, error: "Unable to check department membership." };
+    return {
+      membership: null as {
+        id: string;
+        left_at: string | null;
+        status: DepartmentMembershipStatus;
+      } | null,
+      error: "Unable to check department membership.",
+    };
   }
 
-  return { membership: (data as { id: string; left_at: string | null } | null) ?? null };
+  return {
+    membership:
+      (data as { id: string; left_at: string | null; status: DepartmentMembershipStatus } | null) ??
+      null,
+  };
 }
 
 async function leaveMembership(
@@ -354,7 +387,12 @@ async function upsertMembership(departmentId: string, memberId: string, role: De
   const supabase = await createClient();
   const row = existing.membership;
   if (row) {
-    const update: { left_at: null; role: DepartmentMemberRole; joined_at?: string } = { left_at: null, role };
+    const update: {
+      left_at: null;
+      role: DepartmentMemberRole;
+      status: DepartmentMembershipStatus;
+      joined_at?: string;
+    } = { left_at: null, role, status: "ACTIVE" };
     if (row.left_at) {
       update.joined_at = new Date().toISOString().slice(0, 10);
     }
@@ -371,6 +409,7 @@ async function upsertMembership(departmentId: string, memberId: string, role: De
       department_id: departmentId,
       member_id: memberId,
       role,
+      status: "ACTIVE",
     } as never)
     .select("id")
     .single();
@@ -591,9 +630,10 @@ export async function listDepartmentMembers(departmentId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("department_members")
-    .select("id, member_id, role, joined_at, members(first_name, last_name, membership_number)")
+    .select("id, member_id, role, status, joined_at, members(first_name, last_name, membership_number)")
     .eq("department_id", departmentId)
     .is("left_at", null)
+    .order("status", { ascending: false })
     .order("role", { ascending: true })
     .order("joined_at", { ascending: true });
 
@@ -612,6 +652,7 @@ export async function listDepartmentMembers(departmentId: string) {
         member_name: memberRow ? displayMemberName(memberRow) : "Unnamed member",
         membership_number: memberRow?.membership_number ?? "—",
         role: row.role as DepartmentMemberRole,
+        status: (row.status as DepartmentMembershipStatus | null) ?? "ACTIVE",
         joined_at: String(row.joined_at),
       };
     }),
@@ -719,6 +760,13 @@ export async function addDepartmentMember(input: unknown) {
     return { error: currentMembership.error };
   }
   if (currentMembership.membership && !currentMembership.membership.left_at) {
+    if (currentMembership.membership.status === "PENDING") {
+      const confirmed = await confirmDepartmentMembership(currentMembership.membership.id);
+      if (confirmed.error) {
+        return { error: confirmed.error };
+      }
+      return { ok: true as const };
+    }
     return { error: "That member is already in this department." };
   }
 
@@ -869,7 +917,7 @@ export async function getMyDepartments() {
 
   const { data, error } = await supabase
     .from("department_members")
-    .select("id, role, departments(id, name, venue)")
+    .select("id, role, status, departments(id, name, venue)")
     .eq("member_id", memberRow.id)
     .is("left_at", null)
     .order("joined_at", { ascending: true });
@@ -899,6 +947,7 @@ export async function getMyDepartments() {
       venue: (departmentRow.venue as string | null) ?? null,
       leader_name: typeof leaderLabel === "string" ? leaderLabel : null,
       role: row.role as DepartmentMemberRole,
+      status: (row.status as DepartmentMembershipStatus | null) ?? "ACTIVE",
     });
   }
 
@@ -1002,16 +1051,19 @@ export async function joinMyDepartment(input: unknown) {
     return { error: currentMembership.error };
   }
   if (currentMembership.membership && !currentMembership.membership.left_at) {
+    if (currentMembership.membership.status === "PENDING") {
+      return { error: "Your request is already pending confirmation." };
+    }
     return { error: "You are already in this department." };
   }
 
   const upserted = await upsertMyMembership(admin, departmentRow.id, member.id, currentMembership.membership);
   if (upserted.error || !upserted.id) {
-    return { error: upserted.error ?? "Unable to join that department." };
+    return { error: upserted.error ?? "Unable to request that department." };
   }
 
   await writeAuditLog({
-    action: "DEPARTMENT_MEMBER_ADDED",
+    action: "DEPARTMENT_MEMBER_REQUESTED",
     entityType: "department_member",
     entityId: upserted.id,
     metadata: { department_id: departmentRow.id, member_id: member.id, source: "portal" },
@@ -1097,12 +1149,18 @@ async function upsertMyMembership(
   admin: ReturnType<typeof createAdminClient>,
   departmentId: string,
   memberId: string,
-  existing: { id: string; left_at: string | null } | null,
+  existing: { id: string; left_at: string | null; status?: DepartmentMembershipStatus } | null,
 ) {
   if (existing) {
-    const update: { left_at: null; role: DepartmentMemberRole; joined_at?: string } = {
+    const update: {
+      left_at: null;
+      role: DepartmentMemberRole;
+      status: DepartmentMembershipStatus;
+      joined_at?: string;
+    } = {
       left_at: null,
       role: "MEMBER",
+      status: "PENDING",
     };
     if (existing.left_at) {
       update.joined_at = new Date().toISOString().slice(0, 10);
@@ -1120,6 +1178,7 @@ async function upsertMyMembership(
       department_id: departmentId,
       member_id: memberId,
       role: "MEMBER",
+      status: "PENDING",
     } as never)
     .select("id")
     .single();
@@ -1129,4 +1188,209 @@ async function upsertMyMembership(
   }
 
   return { id: (data as { id: string }).id };
+}
+
+async function assertCanManageDepartmentMembership(departmentId: string) {
+  const current = await requireRole(["SUPER_ADMIN", "LOCATION_ADMIN", "MEMBER"]);
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("departments")
+    .select("id, name, location_id, leader_member_id, organization_id")
+    .eq("id", departmentId)
+    .eq("organization_id", current.organizationId)
+    .maybeSingle();
+
+  if (error) {
+    logServerError("department.manageGate", error);
+    return { error: "Unable to update that membership." };
+  }
+
+  const department = data as {
+    id: string;
+    name: string;
+    location_id: string;
+    leader_member_id: string | null;
+    organization_id: string;
+  } | null;
+  if (!department) {
+    return { error: "That department is not available." };
+  }
+
+  if (canMutateDepartment(current, department.location_id)) {
+    return { current, department, admin };
+  }
+
+  const { member } = await loadMyMember();
+  if (member && department.leader_member_id === member.id) {
+    return { current, department, admin };
+  }
+
+  return { error: "Only the department leader or campus admin can confirm membership." };
+}
+
+export async function listLedDepartmentJoinRequests() {
+  const { member } = await loadMyMember();
+  if (!member) {
+    return { requests: [] as DepartmentJoinRequest[] };
+  }
+
+  const admin = createAdminClient();
+  const { data: led, error: ledError } = await admin
+    .from("departments")
+    .select("id, name")
+    .eq("organization_id", member.organization_id)
+    .eq("leader_member_id", member.id)
+    .eq("status", "ACTIVE");
+
+  if (ledError) {
+    logServerError("department.led", ledError);
+    return { requests: [] as DepartmentJoinRequest[] };
+  }
+
+  const departments = (led ?? []) as Array<{ id: string; name: string }>;
+  if (departments.length === 0) {
+    return { requests: [] as DepartmentJoinRequest[] };
+  }
+
+  const { data, error } = await admin
+    .from("department_members")
+    .select(
+      "id, department_id, member_id, joined_at, members(first_name, last_name, membership_number), departments(name)",
+    )
+    .in(
+      "department_id",
+      departments.map((department) => department.id),
+    )
+    .eq("status", "PENDING")
+    .is("left_at", null)
+    .order("joined_at", { ascending: true });
+
+  if (error) {
+    logServerError("department.ledRequests", error);
+    return { requests: [] as DepartmentJoinRequest[] };
+  }
+
+  return {
+    requests: ((data ?? []) as Array<Record<string, unknown>>).map((row) => {
+      const memberJoin = row.members as MemberNameRow | MemberNameRow[] | null;
+      const memberRow = Array.isArray(memberJoin) ? memberJoin[0] : memberJoin;
+      const department = row.departments as { name: string } | { name: string }[] | null;
+      const departmentRow = Array.isArray(department) ? department[0] : department;
+      return {
+        id: String(row.id),
+        department_id: String(row.department_id),
+        department_name: departmentRow?.name ?? "Department",
+        member_id: String(row.member_id),
+        member_name: memberRow ? displayMemberName(memberRow) : "Unnamed member",
+        membership_number: memberRow?.membership_number ?? "—",
+        joined_at: String(row.joined_at),
+      };
+    }),
+  };
+}
+
+export async function confirmDepartmentMembership(membershipId: string) {
+  const adminClient = createAdminClient();
+  const { data: membership, error: loadError } = await adminClient
+    .from("department_members")
+    .select("id, department_id, member_id, status, left_at")
+    .eq("id", membershipId)
+    .maybeSingle();
+
+  if (loadError) {
+    logServerError("department.confirmLoad", loadError);
+    return { error: "Unable to confirm that request." };
+  }
+
+  const row = membership as {
+    id: string;
+    department_id: string;
+    member_id: string;
+    status: DepartmentMembershipStatus;
+    left_at: string | null;
+  } | null;
+  if (!row || row.left_at || row.status !== "PENDING") {
+    return { error: "That join request is not pending." };
+  }
+
+  const gate = await assertCanManageDepartmentMembership(row.department_id);
+  if ("error" in gate && gate.error) {
+    return { error: gate.error };
+  }
+
+  const { error } = await adminClient
+    .from("department_members")
+    .update({
+      status: "ACTIVE",
+      joined_at: new Date().toISOString().slice(0, 10),
+    } as never)
+    .eq("id", row.id)
+    .eq("status", "PENDING");
+
+  if (error) {
+    logServerError("department.confirm", error);
+    return { error: userSafeDatabaseError(error.message) };
+  }
+
+  await writeAuditLog({
+    action: "DEPARTMENT_MEMBER_CONFIRMED",
+    entityType: "department_member",
+    entityId: row.id,
+    metadata: { department_id: row.department_id, member_id: row.member_id },
+  });
+
+  return { ok: true as const, departmentId: row.department_id, memberId: row.member_id };
+}
+
+export async function declineDepartmentMembership(membershipId: string) {
+  const adminClient = createAdminClient();
+  const { data: membership, error: loadError } = await adminClient
+    .from("department_members")
+    .select("id, department_id, member_id, status, left_at")
+    .eq("id", membershipId)
+    .maybeSingle();
+
+  if (loadError) {
+    logServerError("department.declineLoad", loadError);
+    return { error: "Unable to decline that request." };
+  }
+
+  const row = membership as {
+    id: string;
+    department_id: string;
+    member_id: string;
+    status: DepartmentMembershipStatus;
+    left_at: string | null;
+  } | null;
+  if (!row || row.left_at || row.status !== "PENDING") {
+    return { error: "That join request is not pending." };
+  }
+
+  const gate = await assertCanManageDepartmentMembership(row.department_id);
+  if ("error" in gate && gate.error) {
+    return { error: gate.error };
+  }
+
+  const { error } = await adminClient
+    .from("department_members")
+    .update({
+      left_at: new Date().toISOString().slice(0, 10),
+      role: "MEMBER",
+    } as never)
+    .eq("id", row.id)
+    .eq("status", "PENDING");
+
+  if (error) {
+    logServerError("department.decline", error);
+    return { error: userSafeDatabaseError(error.message) };
+  }
+
+  await writeAuditLog({
+    action: "DEPARTMENT_MEMBER_DECLINED",
+    entityType: "department_member",
+    entityId: row.id,
+    metadata: { department_id: row.department_id, member_id: row.member_id },
+  });
+
+  return { ok: true as const, departmentId: row.department_id, memberId: row.member_id };
 }

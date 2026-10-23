@@ -34,17 +34,15 @@ export function MemberGiveForm({ categories, configured, canGive }: MemberGiveFo
   });
 
   if (!canGive) {
-    return (
-      <p className="text-sm text-gray-600">Ask your campus office to link your membership before you give online.</p>
-    );
+    return <p className="text-sm text-gray-600">Link your membership to give online.</p>;
   }
 
   if (!configured) {
-    return <p className="text-sm text-gray-600">Online giving is not available yet.</p>;
+    return <p className="text-sm text-gray-600">Online giving unavailable.</p>;
   }
 
   if (categories.length === 0) {
-    return <p className="text-sm text-gray-600">Your church has no giving categories yet.</p>;
+    return <p className="text-sm text-gray-600">No giving categories yet.</p>;
   }
 
   function onSubmit(values: MemberGivingCheckoutInput) {
@@ -86,7 +84,7 @@ export function MemberGiveForm({ categories, configured, canGive }: MemberGiveFo
           disabled={pending}
           className="w-full rounded-lg bg-maroon px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
         >
-          {pending ? "Opening Stripe..." : "Pay with Stripe"}
+          {pending ? "Opening…" : "Give"}
         </button>
       </div>
       {serverError ? (

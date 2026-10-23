@@ -119,8 +119,23 @@ export function eventRegistrationStatusLabel(status: string) {
       return "Attended";
     case "CANCELLED":
       return "Cancelled";
+    case "PENDING_PAYMENT":
+      return "Pending payment";
     default:
       return status.replace(/_/g, " ");
+  }
+}
+
+export function eventAttendanceModeLabel(mode: string) {
+  switch (mode) {
+    case "LIVE":
+      return "Live";
+    case "ONLINE":
+      return "Online";
+    case "HYBRID":
+      return "Hybrid";
+    default:
+      return mode.replace(/_/g, " ");
   }
 }
 
@@ -271,6 +286,21 @@ export function cellGroupMemberRoleLabel(role: string) {
     default:
       return role.replace(/_/g, " ");
   }
+}
+
+export function departmentMembershipStatusLabel(status: string) {
+  switch (status) {
+    case "PENDING":
+      return "Pending";
+    case "ACTIVE":
+      return "Active";
+    default:
+      return status.replace(/_/g, " ");
+  }
+}
+
+export function cellGroupMembershipStatusLabel(status: string) {
+  return departmentMembershipStatusLabel(status);
 }
 
 export function departmentMemberRoleLabel(role: string) {

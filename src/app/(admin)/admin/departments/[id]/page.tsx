@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DepartmentAddMemberForm } from "@/components/admin/department-add-member-form";
 import { DepartmentDeleteButton } from "@/components/admin/department-delete-button";
+import { DepartmentMembershipActions } from "@/components/admin/department-membership-actions";
 import { DepartmentRemoveMemberButton } from "@/components/admin/department-remove-member-button";
 import { DataTable, DataTableBody, DataTableHead } from "@/components/ui/data-table";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,7 +14,11 @@ import {
   getDepartment,
   listDepartmentMembers,
 } from "@/lib/services/department.service";
-import { departmentMemberRoleLabel, formatDate } from "@/lib/utils/format";
+import {
+  departmentMemberRoleLabel,
+  departmentMembershipStatusLabel,
+  formatDate,
+} from "@/lib/utils/format";
 
 type DepartmentDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -29,6 +34,8 @@ export default async function DepartmentDetailPage({ params }: DepartmentDetailP
   }
 
   const canMutate = canMutateDepartment(current, department.location_id);
+  const pending = roster.rows.filter((row) => row.status === "PENDING");
+  const active = roster.rows.filter((row) => row.status === "ACTIVE");
 
   return (
     <>
@@ -85,8 +92,7 @@ export default async function DepartmentDetailPage({ params }: DepartmentDetailP
         <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
           <h2 className="text-sm font-semibold text-navy">Add member</h2>
           <p className="mt-2 text-sm text-gray-600">
-            Members can belong to several departments at once. Adding someone here does not remove them
-            from other departments.
+            Staff adds are confirmed immediately. Member self-requests stay pending until confirmed.
           </p>
           {canMutate ? (
             <div className="mt-4">
@@ -98,6 +104,39 @@ export default async function DepartmentDetailPage({ params }: DepartmentDetailP
         </section>
       </div>
 
+      {pending.length > 0 ? (
+        <section className="mt-6">
+          <h2 className="mb-3 text-sm font-semibold text-navy">Pending requests</h2>
+          <DataTable isEmpty={false} emptyTitle="No pending requests">
+            <DataTableHead>
+              <tr>
+                <th className="px-4 py-3">Member</th>
+                <th className="px-4 py-3">Requested</th>
+                {canMutate ? <th className="px-4 py-3">Actions</th> : null}
+              </tr>
+            </DataTableHead>
+            <DataTableBody>
+              {pending.map((row) => (
+                <tr key={row.id} className="text-navy">
+                  <td className="px-4 py-3">
+                    <Link href={`/admin/members/${row.member_id}`} className="font-medium hover:underline">
+                      {row.member_name}
+                    </Link>
+                    <p className="text-xs text-gray-500">{row.membership_number}</p>
+                  </td>
+                  <td className="px-4 py-3">{formatDate(row.joined_at)}</td>
+                  {canMutate ? (
+                    <td className="px-4 py-3">
+                      <DepartmentMembershipActions membershipId={row.id} memberName={row.member_name} />
+                    </td>
+                  ) : null}
+                </tr>
+              ))}
+            </DataTableBody>
+          </DataTable>
+        </section>
+      ) : null}
+
       <section className="mt-6">
         <h2 className="mb-3 text-sm font-semibold text-navy">Roster</h2>
         {roster.error ? (
@@ -105,17 +144,18 @@ export default async function DepartmentDetailPage({ params }: DepartmentDetailP
             {roster.error}
           </p>
         ) : null}
-        <DataTable isEmpty={roster.rows.length === 0} emptyTitle="No members in this department yet">
+        <DataTable isEmpty={active.length === 0} emptyTitle="No confirmed members yet">
           <DataTableHead>
             <tr>
               <th className="px-4 py-3">Member</th>
               <th className="px-4 py-3">Role</th>
+              <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Joined</th>
               {canMutate ? <th className="px-4 py-3">Actions</th> : null}
             </tr>
           </DataTableHead>
           <DataTableBody>
-            {roster.rows.map((row) => (
+            {active.map((row) => (
               <tr key={row.id} className="text-navy">
                 <td className="px-4 py-3">
                   <Link href={`/admin/members/${row.member_id}`} className="font-medium hover:underline">
@@ -125,6 +165,9 @@ export default async function DepartmentDetailPage({ params }: DepartmentDetailP
                 </td>
                 <td className="px-4 py-3">
                   <StatusBadge status={row.role} label={departmentMemberRoleLabel(row.role)} />
+                </td>
+                <td className="px-4 py-3">
+                  <StatusBadge status={row.status} label={departmentMembershipStatusLabel(row.status)} />
                 </td>
                 <td className="px-4 py-3">{formatDate(row.joined_at)}</td>
                 {canMutate ? (

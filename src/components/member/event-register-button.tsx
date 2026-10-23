@@ -5,15 +5,32 @@ import {
   cancelEventRegistrationAction,
   registerForEventAction,
 } from "@/lib/services/portal.actions";
+import { formatAmount } from "@/lib/utils/format";
 
 type EventRegisterButtonProps = {
   eventId: string;
   registered: boolean;
+  pendingPayment?: boolean;
+  isPaid?: boolean;
+  price?: number | null;
+  currency?: string | null;
 };
 
-export function EventRegisterButton({ eventId, registered }: EventRegisterButtonProps) {
+export function EventRegisterButton({
+  eventId,
+  registered,
+  pendingPayment = false,
+  isPaid = false,
+  price = null,
+  currency = null,
+}: EventRegisterButtonProps) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const payLabel =
+    price != null && currency
+      ? `Pay ${formatAmount(price, currency)} & register`
+      : "Pay & register";
 
   return (
     <div>
@@ -33,7 +50,15 @@ export function EventRegisterButton({ eventId, registered }: EventRegisterButton
           });
         }}
       >
-        {isPending ? "Working..." : registered ? "Cancel registration" : "Register"}
+        {isPending
+          ? "Working..."
+          : registered
+            ? "Cancel registration"
+            : pendingPayment || isPaid
+              ? pendingPayment
+                ? "Complete payment"
+                : payLabel
+              : "Register"}
       </button>
       {error ? (
         <p role="alert" className="mt-2 text-sm text-red-700">

@@ -27,15 +27,18 @@ export type AuditLog = Tables<"audit_logs">;
 export type LocationStatus = Enums<"location_status">;
 export type CellGroupStatus = Enums<"cell_group_status">;
 export type CellGroupMemberRole = Enums<"cell_group_member_role">;
+export type CellGroupMembershipStatus = Enums<"cell_group_membership_status">;
 export type CellGroupAttendanceStatus = Enums<"cell_group_attendance_status">;
 export type DepartmentStatus = Enums<"department_status">;
 export type DepartmentMemberRole = Enums<"department_member_role">;
+export type DepartmentMembershipStatus = Enums<"department_membership_status">;
 export type ProfileStatus = Enums<"profile_status">;
 export type MembershipStatus = Enums<"membership_status">;
 export type PaymentMethod = Enums<"payment_method">;
 export type TransactionStatus = Enums<"transaction_status">;
 export type TerminalStatus = Enums<"terminal_status">;
 export type EventRegistrationStatus = Enums<"event_registration_status">;
+export type EventAttendanceMode = Enums<"event_attendance_mode">;
 export type FamilyRelationship = Enums<"family_relationship">;
 
 export const APP_ROLES: readonly AppRole[] = [
@@ -53,5 +56,16 @@ export const PROFILE_STATUSES: readonly ProfileStatus[] = [
 
 export const LOCATION_STATUSES: readonly LocationStatus[] = ["ACTIVE", "INACTIVE"] as const;
 
-export const MVP_CURRENCIES = ["USD", "ZiG", "ZAR"] as const;
-export type MvpCurrency = (typeof MVP_CURRENCIES)[number];
+export const MVP_CURRENCY_PRESETS = ["USD", "ZiG", "ZAR"] as const;
+export type MvpCurrencyPreset = (typeof MVP_CURRENCY_PRESETS)[number];
+
+/** Preset currencies for filters and forms. Terminal "Other" uses a custom code. */
+export const MVP_CURRENCIES = MVP_CURRENCY_PRESETS;
+export type MvpCurrency = MvpCurrencyPreset;
+
+export const TERMINAL_CURRENCY_OPTIONS = [...MVP_CURRENCY_PRESETS, "Other"] as const;
+export type TerminalCurrencyOption = (typeof TERMINAL_CURRENCY_OPTIONS)[number];
+
+export function isMvpCurrencyPreset(value: string): value is MvpCurrencyPreset {
+  return (MVP_CURRENCY_PRESETS as readonly string[]).includes(value);
+}

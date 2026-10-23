@@ -5,7 +5,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormField, fieldClassName } from "@/components/ui/form-field";
 import { createEventAction, updateEventAction } from "@/lib/services/event.actions";
-import { eventSchema, type EventInput } from "@/lib/validators/event.schema";
+import {
+  EVENT_ATTENDANCE_MODES,
+  EVENT_TICKET_CURRENCIES,
+  eventSchema,
+  type EventInput,
+} from "@/lib/validators/event.schema";
 
 type LocationOption = { id: string; name: string; code: string };
 
@@ -22,6 +27,8 @@ export function EventForm({ eventId, lockLocation, locations, defaultValues }: E
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<EventInput>({
     resolver: zodResolver(eventSchema),
@@ -29,6 +36,10 @@ export function EventForm({ eventId, lockLocation, locations, defaultValues }: E
   });
 
   const selectedLocation = locations.find((location) => location.id === defaultValues.location_id);
+  const isPaid = watch("is_paid");
+  const registrationRequired = watch("registration_required");
+  const attendanceMode = watch("attendance_mode");
+  const showOnlineUrl = attendanceMode === "ONLINE" || attendanceMode === "HYBRID";
 
   function onSubmit(values: EventInput) {
     setServerError(null);
@@ -93,9 +104,60 @@ export function EventForm({ eventId, lockLocation, locations, defaultValues }: E
           {...register("description")}
         />
       </FormField>
-      <FormField label="Venue" htmlFor="venue" error={errors.venue?.message}>
-        <input id="venue" className={fieldClassName} disabled={isPending} {...register("venue")} />
+      <FormField
+        label="Attendance"
+        htmlFor="attendance_mode"
+        hint="Live = in person. Online = virtual only. Hybrid = both."
+        error={errors.attendance_mode?.message}
+      >
+        <select
+          id="attendance_mode"
+          className={fieldClassName}
+          disabled={isPending}
+          {...register("attendance_mode", {
+            onChange: (event) => {
+              if (event.target.value === "LIVE") {
+                setValue("online_url", "", { shouldValidate: true });
+              }
+            },
+          })}
+        >
+          {EVENT_ATTENDANCE_MODES.map((mode) => (
+            <option key={mode} value={mode}>
+              {mode === "LIVE" ? "Live (in person)" : mode === "ONLINE" ? "Online" : "Hybrid (live + online)"}
+            </option>
+          ))}
+        </select>
       </FormField>
+
+      {attendanceMode !== "ONLINE" ? (
+        <FormField
+          label="Venue"
+          htmlFor="venue"
+          hint={attendanceMode === "HYBRID" ? "Physical location for live attendance." : undefined}
+          error={errors.venue?.message}
+        >
+          <input id="venue" className={fieldClassName} disabled={isPending} {...register("venue")} />
+        </FormField>
+      ) : null}
+
+      {showOnlineUrl ? (
+        <FormField
+          label="Online link"
+          htmlFor="online_url"
+          hint="Optional meeting URL (Zoom, Meet, YouTube, etc.)."
+          error={errors.online_url?.message}
+        >
+          <input
+            id="online_url"
+            type="url"
+            placeholder="https://"
+            className={fieldClassName}
+            disabled={isPending}
+            {...register("online_url")}
+          />
+        </FormField>
+      ) : null}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <FormField label="Starts" htmlFor="start_date" error={errors.start_date?.message}>
@@ -119,9 +181,70 @@ export function EventForm({ eventId, lockLocation, locations, defaultValues }: E
       </div>
 
       <label className="flex items-center gap-2 text-sm text-navy">
-        <input type="checkbox" disabled={isPending} {...register("registration_required")} />
+        <input
+          type="checkbox"
+          disabled={isPending}
+          {...register("registration_required", {
+            onChange: (event) => {
+              const checked = Boolean(event.target.checked);
+              if (!checked) {
+                setValue("is_paid", false, { shouldValidate: true });
+                setValue("price", "", { shouldValidate: true });
+                setValue("currency", "", { shouldValidate: true });
+              }
+            },
+          })}
+        />
         Members can register
       </label>
+      {errors.registration_required?.message ? (
+        <p className="text-sm text-red-700">{errors.registration_required.message}</p>
+      ) : null}
+
+      <label className="flex items-center gap-2 text-sm text-navy">
+        <input
+          type="checkbox"
+          disabled={isPending || !registrationRequired}
+          {...register("is_paid", {
+            onChange: (event) => {
+              const checked = Boolean(event.target.checked);
+              if (checked) {
+                setValue("registration_required", true, { shouldValidate: true });
+                if (!watch("currency")) {
+                  setValue("currency", "USD", { shouldValidate: true });
+                }
+              } else {
+                setValue("price", "", { shouldValidate: true });
+                setValue("currency", "", { shouldValidate: true });
+              }
+            },
+          })}
+        />
+        Paid event (online payment via Stripe)
+      </label>
+
+      {isPaid ? (
+        <div className="grid gap-5 sm:grid-cols-2">
+          <FormField label="Ticket price" htmlFor="price" error={errors.price?.message}>
+            <input
+              id="price"
+              inputMode="decimal"
+              className={fieldClassName}
+              disabled={isPending}
+              {...register("price")}
+            />
+          </FormField>
+          <FormField label="Currency" htmlFor="currency" error={errors.currency?.message}>
+            <select id="currency" className={fieldClassName} disabled={isPending} {...register("currency")}>
+              {EVENT_TICKET_CURRENCIES.map((currency) => (
+                <option key={currency} value={currency}>
+                  {currency}
+                </option>
+              ))}
+            </select>
+          </FormField>
+        </div>
+      ) : null}
 
       <FormField
         label="Capacity"

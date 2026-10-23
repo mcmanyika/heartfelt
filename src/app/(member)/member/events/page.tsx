@@ -5,14 +5,30 @@ import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
 import { LIST_PAGE_SIZE, listPageCount, parseListPage } from "@/lib/admin/list-page";
 import { withQuery } from "@/lib/admin/query-string";
+import {
+  cancelEventRegistrationCheckout,
+  reconcileEventRegistrationSession,
+} from "@/lib/services/event-registration-payment.service";
 import { listMyEvents } from "@/lib/services/portal.service";
 
 type MemberEventsPageProps = {
-  searchParams: Promise<{ q?: string; page?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    page?: string;
+    registration?: string;
+    session_id?: string;
+  }>;
 };
 
 export default async function MemberEventsPage({ searchParams }: MemberEventsPageProps) {
   const params = await searchParams;
+  if (params.session_id && params.registration === "success") {
+    await reconcileEventRegistrationSession(params.session_id);
+  }
+  if (params.session_id && params.registration === "cancelled") {
+    await cancelEventRegistrationCheckout(params.session_id);
+  }
+
   const page = parseListPage(params.page);
   const all = await listMyEvents();
   const q = params.q?.trim().toLowerCase() ?? "";
@@ -23,6 +39,12 @@ export default async function MemberEventsPage({ searchParams }: MemberEventsPag
     : all;
   const pageCount = listPageCount(matches.length);
   const events = matches.slice((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE);
+  const notice =
+    params.registration === "cancelled"
+      ? "Checkout was cancelled. No payment was taken."
+      : params.registration === "success"
+        ? "Payment received. Your registration is confirmed."
+        : null;
 
   return (
     <>
@@ -30,6 +52,9 @@ export default async function MemberEventsPage({ searchParams }: MemberEventsPag
         title="Events"
         description="Organization-wide gatherings and events at your campus."
       />
+      {notice ? (
+        <p className="mb-4 rounded-xl border border-border bg-card px-4 py-3 text-sm text-navy">{notice}</p>
+      ) : null}
       <form className="mb-5 grid gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm md:grid-cols-3">
         <SearchInput defaultValue={params.q} placeholder="Search title or venue" />
         <div>

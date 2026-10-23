@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import {
   cancelEventRegistration,
   registerForEvent,
@@ -21,8 +22,12 @@ export async function updateMyProfileAction(input: unknown) {
 
 export async function registerForEventAction(eventId: string) {
   const result = await registerForEvent(eventId);
-  if (result.error) {
+  if ("error" in result && result.error) {
     return { error: result.error };
+  }
+
+  if ("url" in result && result.url) {
+    redirect(result.url);
   }
 
   revalidatePath("/member/events");

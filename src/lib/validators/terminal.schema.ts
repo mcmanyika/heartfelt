@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { MVP_CURRENCIES } from "@/types";
+
+const terminalCurrencySchema = z
+  .string()
+  .trim()
+  .min(2, "Enter a currency.")
+  .max(12, "Use a shorter currency code.")
+  .refine((value) => !/^other$/i.test(value), "Specify the currency.")
+  .refine((value) => /^[A-Za-z]{2,12}$/.test(value), "Use a currency code like EUR.");
 
 export const TERMINAL_STATUSES = ["ONLINE", "OFFLINE", "MAINTENANCE", "DISABLED"] as const;
 
@@ -45,7 +52,7 @@ const terminalAmount = z
 export const terminalPaymentItemSchema = z.object({
   giving_category_id: z.string().uuid("Select a giving category."),
   amount: terminalAmount,
-  currency: z.enum(MVP_CURRENCIES),
+  currency: terminalCurrencySchema,
   notes: z.string().trim().max(400, "Use a shorter note.").optional().or(z.literal("")),
 });
 
@@ -78,7 +85,7 @@ export const terminalPaymentSchema = withCardChannelRules(
     terminal_code: z.string().trim().min(3, "Unknown terminal."),
     giving_category_id: z.string().uuid("Select a giving category."),
     amount: terminalAmount,
-    currency: z.enum(MVP_CURRENCIES),
+    currency: terminalCurrencySchema,
     payment_method: z.enum(TERMINAL_PAYMENT_METHODS),
     card_channel: z.enum(TERMINAL_CARD_CHANNELS).optional(),
     receipt_code: z.string().trim().max(24).optional().or(z.literal("")),

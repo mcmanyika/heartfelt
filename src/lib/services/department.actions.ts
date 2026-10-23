@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   addDepartmentMember,
+  confirmDepartmentMembership,
   createDepartment,
+  declineDepartmentMembership,
   deleteDepartment,
   joinMyDepartment,
   leaveMyDepartment,
@@ -106,5 +108,25 @@ export async function leaveMyDepartmentAction(departmentId: string) {
   }
 
   revalidateDepartmentPaths(departmentId);
+  return { ok: true as const };
+}
+
+export async function confirmDepartmentMembershipAction(membershipId: string) {
+  const result = await confirmDepartmentMembership(membershipId);
+  if (result.error) {
+    return { error: result.error };
+  }
+
+  revalidateDepartmentPaths(result.departmentId, result.memberId);
+  return { ok: true as const };
+}
+
+export async function declineDepartmentMembershipAction(membershipId: string) {
+  const result = await declineDepartmentMembership(membershipId);
+  if (result.error) {
+    return { error: result.error };
+  }
+
+  revalidateDepartmentPaths(result.departmentId, result.memberId);
   return { ok: true as const };
 }

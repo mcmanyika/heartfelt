@@ -11,7 +11,10 @@ import {
   leaveMyDepartmentAction,
 } from "@/lib/services/department.actions";
 import type { AssignableDepartmentOption, PortalDepartment } from "@/lib/services/department.service";
-import { departmentMemberRoleLabel } from "@/lib/utils/format";
+import {
+  departmentMemberRoleLabel,
+  departmentMembershipStatusLabel,
+} from "@/lib/utils/format";
 import { myDepartmentSchema, type MyDepartmentInput } from "@/lib/validators/profile.schema";
 
 type MemberDepartmentsEditorProps = {
@@ -23,6 +26,7 @@ export function MemberDepartmentsEditor({ current, available }: MemberDepartment
   const remaining = available.filter(
     (department) => !current.some((joined) => joined.id === department.id),
   );
+  const [requestOpen, setRequestOpen] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const {
@@ -35,6 +39,12 @@ export function MemberDepartmentsEditor({ current, available }: MemberDepartment
     defaultValues: { department_id: "" },
   });
 
+  function closeRequest() {
+    setRequestOpen(false);
+    setServerError(null);
+    reset({ department_id: "" });
+  }
+
   function onSubmit(values: MyDepartmentInput) {
     setServerError(null);
     startTransition(async () => {
@@ -43,15 +53,36 @@ export function MemberDepartmentsEditor({ current, available }: MemberDepartment
         setServerError(result.error);
         return;
       }
-      reset({ department_id: "" });
+      closeRequest();
     });
   }
 
   return (
     <div className="space-y-5">
-      {current.length === 0 ? (
-        <p className="text-sm text-gray-600">You have not joined a department yet.</p>
-      ) : (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-gray-600">
+          {current.length === 0
+            ? "You have not joined a department yet."
+            : `${current.length} department${current.length === 1 ? "" : "s"}`}
+        </p>
+        <button
+          type="button"
+          onClick={() => setRequestOpen(true)}
+          disabled={remaining.length === 0}
+          title={
+            remaining.length === 0
+              ? available.length === 0
+                ? "No active departments on this campus yet."
+                : "You already requested or joined every campus department."
+              : undefined
+          }
+          className="rounded-lg bg-maroon px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Request to join
+        </button>
+      </div>
+
+      {current.length > 0 ? (
         <ul className="divide-y divide-border rounded-xl border border-border">
           {current.map((department) => (
             <li key={department.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
@@ -63,58 +94,103 @@ export function MemberDepartmentsEditor({ current, available }: MemberDepartment
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <StatusBadge status={department.role} label={departmentMemberRoleLabel(department.role)} />
+                <StatusBadge
+                  status={department.status}
+                  label={departmentMembershipStatusLabel(department.status)}
+                />
+                {department.status === "ACTIVE" ? (
+                  <StatusBadge status={department.role} label={departmentMemberRoleLabel(department.role)} />
+                ) : null}
                 <DeleteRecordButton
-                  title="Leave this department"
-                  message={`You will leave ${department.name}. You can join again later.`}
-                  confirmLabel="Leave"
-                  triggerLabel="Leave"
+                  title={department.status === "PENDING" ? "Cancel request" : "Leave this department"}
+                  message={
+                    department.status === "PENDING"
+                      ? `Cancel your request to join ${department.name}.`
+                      : `You will leave ${department.name}. You can request again later.`
+                  }
+                  confirmLabel={department.status === "PENDING" ? "Cancel request" : "Leave"}
+                  triggerLabel={department.status === "PENDING" ? "Cancel" : "Leave"}
                   onConfirm={() => leaveMyDepartmentAction(department.id)}
                 />
               </div>
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
 
       {remaining.length === 0 ? (
         <p className="text-sm text-gray-600">
-          {current.length > 0
-            ? "No other active departments on this campus."
-            : "No active departments on this campus."}
+          {available.length === 0
+            ? "No active departments on this campus yet."
+            : "You already requested or joined every campus department."}
         </p>
-      ) : (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-          {serverError ? (
-            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-              {serverError}
-            </p>
-          ) : null}
-          <FormField label="Join a department" htmlFor="department_id" error={errors.department_id?.message}>
-            <select
-              id="department_id"
-              className={fieldClassName}
-              disabled={isPending}
-              {...register("department_id")}
-            >
-              <option value="">Select a department</option>
-              {remaining.map((department) => (
-                <option key={department.id} value={department.id}>
-                  {department.name}
-                  {department.code ? ` · ${department.code}` : ""}
-                </option>
-              ))}
-            </select>
-          </FormField>
+      ) : null}
+
+      {requestOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <button
-            type="submit"
-            disabled={isPending}
-            className="rounded-lg bg-maroon px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-70"
+            type="button"
+            className="absolute inset-0 bg-black/50"
+            aria-label="Close dialog"
+            onClick={closeRequest}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="request-department-title"
+            className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl"
           >
-            {isPending ? "Joining..." : "Join department"}
-          </button>
-        </form>
-      )}
+            <h2 id="request-department-title" className="text-lg font-semibold text-navy">
+              Request to join
+            </h2>
+            <p className="mt-1 text-sm text-gray-600">
+              A department leader or campus admin must confirm your request.
+            </p>
+            <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4" noValidate>
+              {serverError ? (
+                <p
+                  role="alert"
+                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+                >
+                  {serverError}
+                </p>
+              ) : null}
+              <FormField label="Department" htmlFor="department_id" error={errors.department_id?.message}>
+                <select
+                  id="department_id"
+                  className={fieldClassName}
+                  disabled={isPending || remaining.length === 0}
+                  {...register("department_id")}
+                >
+                  <option value="">Select a department</option>
+                  {remaining.map((department) => (
+                    <option key={department.id} value={department.id}>
+                      {department.name}
+                      {department.code ? ` · ${department.code}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={closeRequest}
+                  className="rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-navy"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending || remaining.length === 0}
+                  className="rounded-lg bg-maroon px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-70"
+                >
+                  {isPending ? "Sending..." : "Send request"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

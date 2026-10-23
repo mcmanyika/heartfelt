@@ -10,7 +10,7 @@ import { parseListPage } from "@/lib/admin/list-page";
 import { parseSortColumn, parseSortDir } from "@/lib/admin/sort";
 import { requireRole } from "@/lib/auth/require-role";
 import { canMutateContent, CONTENT_ROLES, EVENT_SORTS, listEvents } from "@/lib/services/event.service";
-import { formatDateTime } from "@/lib/utils/format";
+import { eventAttendanceModeLabel, formatAmount, formatDateTime } from "@/lib/utils/format";
 import { EVENT_WHEN_FILTERS, type EventWhenFilter } from "@/lib/validators/event.schema";
 
 type EventsPageProps = {
@@ -120,7 +120,14 @@ export default async function AdminEventsPage({ searchParams }: EventsPageProps)
             <tr key={event.id} className="text-navy">
               <td className="px-4 py-3">
                 <p className="font-medium">{event.title}</p>
-                <p className="text-xs text-gray-500">{event.venue || "Venue to be confirmed"}</p>
+                <p className="text-xs text-gray-500">
+                  {eventAttendanceModeLabel(event.attendance_mode)}
+                  {event.attendance_mode !== "ONLINE"
+                    ? ` · ${event.venue || "Venue TBD"}`
+                    : event.online_url
+                      ? " · Online link set"
+                      : " · Link TBD"}
+                </p>
               </td>
               <td className="px-4 py-3">
                 {event.location_name ? `${event.location_name} (${event.location_code})` : "All locations"}
@@ -128,9 +135,14 @@ export default async function AdminEventsPage({ searchParams }: EventsPageProps)
               <td className="px-4 py-3">{formatDateTime(event.start_date)}</td>
               <td className="px-4 py-3">
                 {event.registration_required
-                  ? event.capacity
-                    ? `Required · ${event.capacity} seats`
-                    : "Required"
+                  ? [
+                      event.is_paid && event.price != null && event.currency
+                        ? formatAmount(event.price, event.currency)
+                        : null,
+                      event.capacity ? `${event.capacity} seats` : "Required",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
                   : "Open"}
               </td>
               <td className="px-4 py-3">

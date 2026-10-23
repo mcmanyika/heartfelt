@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { recordPackagePayment, markPackageCheckoutFailed, markPackagePaymentRefunded } from "@/lib/services/billing-webhook.service";
+import {
+  markEventRegistrationCheckoutFailed,
+  markEventRegistrationRefunded,
+  recordEventRegistrationPayment,
+} from "@/lib/services/event-registration-payment.service";
 import { markMemberGivingFailed, markMemberGivingRefunded, recordMemberGivingPayment } from "@/lib/services/member-giving.service";
 import {
   markEmbedGivingFailed,
@@ -39,6 +44,8 @@ export async function POST(request: Request) {
           await recordMemberGivingPayment(session);
         } else if (session.metadata?.kind === "embed_giving") {
           await recordEmbedGivingPayment(session);
+        } else if (session.metadata?.kind === "event_registration") {
+          await recordEventRegistrationPayment(session);
         } else {
           await recordPackagePayment(session);
         }
@@ -49,6 +56,8 @@ export async function POST(request: Request) {
         await markMemberGivingFailed(session.id);
       } else if (session.metadata?.kind === "embed_giving") {
         await markEmbedGivingFailed(session.id);
+      } else if (session.metadata?.kind === "event_registration") {
+        await markEventRegistrationCheckoutFailed(session.id);
       } else {
         await markPackageCheckoutFailed(session.id);
       }
@@ -59,6 +68,7 @@ export async function POST(request: Request) {
         await markPackagePaymentRefunded(paymentIntentId);
         await markMemberGivingRefunded(paymentIntentId);
         await markEmbedGivingRefunded(paymentIntentId);
+        await markEventRegistrationRefunded(paymentIntentId);
       }
     }
   } catch (error) {

@@ -4,6 +4,7 @@ import { getAdminLocationSelection } from "@/lib/auth/admin-location";
 import { requireRole } from "@/lib/auth/require-role";
 import type { CurrentUser } from "@/lib/auth/types";
 import { writeAuditLog } from "@/lib/services/audit.service";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { emptyToNull, firstZodError, userSafeDatabaseError } from "@/lib/utils/forms";
 import { displayMemberName } from "@/lib/utils/format";
@@ -15,7 +16,13 @@ import {
   cellGroupMemberSchema,
   cellGroupSchema,
 } from "@/lib/validators/cell-group.schema";
-import type { CellGroupAttendanceStatus, CellGroupMemberRole, CellGroupStatus } from "@/types";
+import { myCellGroupSchema } from "@/lib/validators/profile.schema";
+import type {
+  CellGroupAttendanceStatus,
+  CellGroupMemberRole,
+  CellGroupMembershipStatus,
+  CellGroupStatus,
+} from "@/types";
 
 export const CELL_GROUP_ROLES = ["SUPER_ADMIN", "LOCATION_ADMIN"] as const;
 
@@ -58,6 +65,7 @@ export type CellGroupRosterRow = {
   member_name: string;
   membership_number: string;
   role: CellGroupMemberRole;
+  status: CellGroupMembershipStatus;
   joined_at: string;
 };
 
@@ -86,20 +94,32 @@ export type CellGroupAttendanceMark = {
 
 export type PortalCellGroup = {
   id: string;
+  membership_id: string;
   name: string;
   venue: string | null;
   meeting_weekday: number | null;
   meeting_time: string | null;
   leader_name: string | null;
   role: CellGroupMemberRole;
+  status: CellGroupMembershipStatus;
   attendance: Array<{
     meeting_date: string;
     status: CellGroupAttendanceStatus;
   }>;
 };
 
+export type CellGroupJoinRequest = {
+  id: string;
+  cell_group_id: string;
+  cell_group_name: string;
+  member_id: string;
+  member_name: string;
+  membership_number: string;
+  joined_at: string;
+};
+
 const GROUP_SELECT =
-  "id, organization_id, location_id, name, code, description, venue, meeting_weekday, meeting_time, leader_member_id, status, locations(name, code), members!cell_groups_leader_member_id_fkey(first_name, last_name, membership_number), cell_group_members(id, left_at)";
+  "id, organization_id, location_id, name, code, description, venue, meeting_weekday, meeting_time, leader_member_id, status, locations(name, code), members!cell_groups_leader_member_id_fkey(first_name, last_name, membership_number), cell_group_members(id, left_at, status)";
 
 function staffCampusId(current: CurrentUser) {
   return current.staffLocationIds[0] ?? current.primaryLocationId ?? null;
@@ -160,8 +180,14 @@ function mapLeaderName(row: Record<string, unknown>) {
 }
 
 function memberCount(row: Record<string, unknown>) {
-  const memberships = row.cell_group_members as Array<{ id: string; left_at: string | null }> | null;
-  return (memberships ?? []).filter((item) => !item.left_at).length;
+  const memberships = row.cell_group_members as Array<{
+    id: string;
+    left_at: string | null;
+    status?: string;
+  }> | null;
+  return (memberships ?? []).filter(
+    (item) => !item.left_at && (item.status ?? "ACTIVE") === "ACTIVE",
+  ).length;
 }
 
 function mapGroup(row: Record<string, unknown>): CellGroupListItem {
@@ -328,7 +354,7 @@ async function findActiveMembership(memberId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("cell_group_members")
-    .select("id, cell_group_id, role, cell_groups(id, name, leader_member_id)")
+    .select("id, cell_group_id, role, status, cell_groups(id, name, leader_member_id)")
     .eq("member_id", memberId)
     .is("left_at", null)
     .maybeSingle();
@@ -339,6 +365,39 @@ async function findActiveMembership(memberId: string) {
   }
 
   return { membership: (data as Record<string, unknown> | null) ?? null };
+}
+
+async function findMembershipInGroup(groupId: string, memberId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("cell_group_members")
+    .select("id, left_at, status, role")
+    .eq("cell_group_id", groupId)
+    .eq("member_id", memberId)
+    .maybeSingle();
+
+  if (error) {
+    logServerError("cellGroup.membershipInGroup", error);
+    return {
+      membership: null as {
+        id: string;
+        left_at: string | null;
+        status: CellGroupMembershipStatus;
+        role: CellGroupMemberRole;
+      } | null,
+      error: "Unable to check group membership.",
+    };
+  }
+
+  return {
+    membership: (data as {
+      id: string;
+      left_at: string | null;
+      status: CellGroupMembershipStatus;
+      role: CellGroupMemberRole;
+    } | null) ?? null,
+    error: null as string | null,
+  };
 }
 
 async function leaveMembership(membership: Record<string, unknown>, memberId: string) {
@@ -374,7 +433,12 @@ async function leaveMembership(membership: Record<string, unknown>, memberId: st
   return { previousGroupName: groupRow?.name ?? null };
 }
 
-async function upsertMembership(groupId: string, memberId: string, role: CellGroupMemberRole) {
+async function upsertMembership(
+  groupId: string,
+  memberId: string,
+  role: CellGroupMemberRole,
+  status: CellGroupMembershipStatus = "ACTIVE",
+) {
   const supabase = await createClient();
   const { data: existing, error: existingError } = await supabase
     .from("cell_group_members")
@@ -390,7 +454,12 @@ async function upsertMembership(groupId: string, memberId: string, role: CellGro
 
   const row = existing as { id: string; left_at: string | null } | null;
   if (row) {
-    const update: { left_at: null; role: CellGroupMemberRole; joined_at?: string } = { left_at: null, role };
+    const update: {
+      left_at: null;
+      role: CellGroupMemberRole;
+      status: CellGroupMembershipStatus;
+      joined_at?: string;
+    } = { left_at: null, role, status };
     if (row.left_at) {
       update.joined_at = new Date().toISOString().slice(0, 10);
     }
@@ -407,6 +476,7 @@ async function upsertMembership(groupId: string, memberId: string, role: CellGro
       cell_group_id: groupId,
       member_id: memberId,
       role,
+      status,
     } as never)
     .select("id")
     .single();
@@ -465,7 +535,11 @@ async function syncLeader(groupId: string, leaderMemberId: string | null, curren
   for (const row of (roster ?? []) as Array<{ id: string; member_id: string; role: string }>) {
     const nextRole = leaderMemberId && row.member_id === leaderMemberId ? "LEADER" : "MEMBER";
     if (row.role !== nextRole) {
-      await supabase.from("cell_group_members").update({ role: nextRole } as never).eq("id", row.id);
+      const update =
+        nextRole === "LEADER"
+          ? ({ role: nextRole, status: "ACTIVE" } as const)
+          : ({ role: nextRole } as const);
+      await supabase.from("cell_group_members").update(update as never).eq("id", row.id);
     }
   }
 
@@ -639,9 +713,10 @@ export async function listCellGroupMembers(groupId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("cell_group_members")
-    .select("id, member_id, role, joined_at, members(first_name, last_name, membership_number)")
+    .select("id, member_id, role, status, joined_at, members(first_name, last_name, membership_number)")
     .eq("cell_group_id", groupId)
     .is("left_at", null)
+    .order("status", { ascending: false })
     .order("role", { ascending: true })
     .order("joined_at", { ascending: true });
 
@@ -660,6 +735,7 @@ export async function listCellGroupMembers(groupId: string) {
         member_name: memberRow ? displayMemberName(memberRow) : "Unnamed member",
         membership_number: memberRow?.membership_number ?? "—",
         role: row.role as CellGroupMemberRole,
+        status: (row.status as CellGroupMembershipStatus | null) ?? "ACTIVE",
         joined_at: String(row.joined_at),
       };
     }),
@@ -764,6 +840,13 @@ export async function addCellGroupMember(input: unknown) {
     return { error: active.error };
   }
   if (active.membership && String(active.membership.cell_group_id) === parsed.data.cell_group_id) {
+    if ((active.membership.status as CellGroupMembershipStatus | undefined) === "PENDING") {
+      const confirmed = await confirmCellGroupMembership(String(active.membership.id));
+      if (confirmed.error) {
+        return { error: confirmed.error };
+      }
+      return { ok: true as const, movedFrom: null };
+    }
     return { error: "That member is already in this cell group." };
   }
 
@@ -776,7 +859,7 @@ export async function addCellGroupMember(input: unknown) {
     movedFrom = left.previousGroupName ?? null;
   }
 
-  const upserted = await upsertMembership(parsed.data.cell_group_id, parsed.data.member_id, "MEMBER");
+  const upserted = await upsertMembership(parsed.data.cell_group_id, parsed.data.member_id, "MEMBER", "ACTIVE");
   if (upserted.error || !upserted.id) {
     return { error: upserted.error ?? "Unable to add that member." };
   }
@@ -873,6 +956,7 @@ export async function getCellGroupAttendance(groupId: string, meetingDate: strin
   if (roster.error) {
     return { marks: [] as CellGroupAttendanceMark[], notes: "", error: roster.error };
   }
+  const activeRoster = { ...roster, rows: roster.rows.filter((row) => row.status === "ACTIVE") };
 
   const supabase = await createClient();
   const { data: meeting } = await supabase
@@ -895,7 +979,7 @@ export async function getCellGroupAttendance(groupId: string, meetingDate: strin
 
   return {
     notes: meetingRow?.notes ?? "",
-    marks: roster.rows.map((row) => ({
+    marks: activeRoster.rows.map((row) => ({
       member_id: row.member_id,
       member_name: row.member_name,
       membership_number: row.membership_number,
@@ -920,7 +1004,9 @@ export async function recordCellGroupAttendance(input: unknown) {
   }
 
   const roster = await listCellGroupMembers(parsed.data.cell_group_id);
-  const allowed = new Set(roster.rows.map((row) => row.member_id));
+  const allowed = new Set(
+    roster.rows.filter((row) => row.status === "ACTIVE").map((row) => row.member_id),
+  );
   const marks = parsed.data.attendance.filter((item) => allowed.has(item.member_id));
   if (marks.length === 0) {
     return { error: "Add members to the group before recording attendance." };
@@ -1034,29 +1120,73 @@ export async function listAssignableCellGroups(locationId: string) {
   return { groups: (data ?? []) as AssignableCellGroupOption[] };
 }
 
-export async function getMyCellGroup() {
+async function loadMyMember() {
   const current = await requireRole("MEMBER");
   const supabase = await createClient();
-  const { data: member, error: memberError } = await supabase
+  const { data, error } = await supabase
     .from("members")
-    .select("id")
+    .select("id, location_id, organization_id")
     .eq("profile_id", current.id)
     .eq("organization_id", current.organizationId)
     .maybeSingle();
 
+  if (error) {
+    logServerError("cellGroup.myMember", error);
+    return {
+      current,
+      member: null as { id: string; location_id: string; organization_id: string } | null,
+      error: "Unable to load your membership record.",
+    };
+  }
+
+  return {
+    current,
+    member: (data as { id: string; location_id: string; organization_id: string } | null) ?? null,
+    error: null as string | null,
+  };
+}
+
+export async function listMyCampusCellGroups() {
+  const { member, error } = await loadMyMember();
+  if (error) {
+    return { groups: [] as AssignableCellGroupOption[], error };
+  }
+  if (!member) {
+    return { groups: [] as AssignableCellGroupOption[] };
+  }
+
+  const admin = createAdminClient();
+  const { data, error: loadError } = await admin
+    .from("cell_groups")
+    .select("id, name, code")
+    .eq("organization_id", member.organization_id)
+    .eq("location_id", member.location_id)
+    .eq("status", "ACTIVE")
+    .order("name")
+    .limit(100);
+
+  if (loadError) {
+    logServerError("cellGroup.myCampus", loadError);
+    return { groups: [] as AssignableCellGroupOption[], error: "Unable to load cell groups." };
+  }
+
+  return { groups: (data ?? []) as AssignableCellGroupOption[] };
+}
+
+export async function getMyCellGroup() {
+  const { member, error: memberError } = await loadMyMember();
   if (memberError) {
-    logServerError("cellGroup.mineMember", memberError);
     return { group: null as PortalCellGroup | null };
   }
-  const memberRow = member as { id: string } | null;
-  if (!memberRow) {
+  if (!member) {
     return { group: null as PortalCellGroup | null };
   }
 
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("cell_group_members")
-    .select("role, cell_groups(id, name, venue, meeting_weekday, meeting_time)")
-    .eq("member_id", memberRow.id)
+    .select("id, role, status, cell_groups(id, name, venue, meeting_weekday, meeting_time)")
+    .eq("member_id", member.id)
     .is("left_at", null)
     .maybeSingle();
 
@@ -1075,41 +1205,450 @@ export async function getMyCellGroup() {
     return { group: null as PortalCellGroup | null };
   }
 
+  const membershipStatus = (row.status as CellGroupMembershipStatus | null) ?? "ACTIVE";
+
   const { data: leaderLabel } = await supabase.rpc("cell_group_leader_label", {
     p_group_id: String(groupRow.id),
   } as never);
 
-  const { data: meetings } = await supabase
-    .from("cell_group_meetings")
-    .select("meeting_date, cell_group_attendance(status, member_id)")
-    .eq("cell_group_id", String(groupRow.id))
-    .order("meeting_date", { ascending: false })
-    .limit(8);
+  let attendanceRows: PortalCellGroup["attendance"] = [];
+  if (membershipStatus === "ACTIVE") {
+    const { data: meetings } = await supabase
+      .from("cell_group_meetings")
+      .select("meeting_date, cell_group_attendance(status, member_id)")
+      .eq("cell_group_id", String(groupRow.id))
+      .order("meeting_date", { ascending: false })
+      .limit(8);
 
-  const attendanceRows = ((meetings ?? []) as Array<Record<string, unknown>>).flatMap((meeting) => {
-    const marks = (meeting.cell_group_attendance as Array<{ status: string; member_id: string }> | null) ?? [];
-    const mine = marks.find((item) => item.member_id === memberRow.id);
-    if (!mine) {
-      return [];
-    }
-    return [
-      {
-        meeting_date: String(meeting.meeting_date),
-        status: mine.status as CellGroupAttendanceStatus,
-      },
-    ];
-  });
+    attendanceRows = ((meetings ?? []) as Array<Record<string, unknown>>).flatMap((meeting) => {
+      const marks = (meeting.cell_group_attendance as Array<{ status: string; member_id: string }> | null) ?? [];
+      const mine = marks.find((item) => item.member_id === member.id);
+      if (!mine) {
+        return [];
+      }
+      return [
+        {
+          meeting_date: String(meeting.meeting_date),
+          status: mine.status as CellGroupAttendanceStatus,
+        },
+      ];
+    });
+  }
 
   return {
     group: {
       id: String(groupRow.id),
+      membership_id: String(row.id),
       name: String(groupRow.name),
       venue: (groupRow.venue as string | null) ?? null,
       meeting_weekday: groupRow.meeting_weekday == null ? null : Number(groupRow.meeting_weekday),
       meeting_time: (groupRow.meeting_time as string | null) ?? null,
       leader_name: typeof leaderLabel === "string" ? leaderLabel : null,
       role: row.role as CellGroupMemberRole,
+      status: membershipStatus,
       attendance: attendanceRows.filter((item) => item.meeting_date),
     } satisfies PortalCellGroup,
   };
+}
+
+async function upsertMyMembership(
+  admin: ReturnType<typeof createAdminClient>,
+  groupId: string,
+  memberId: string,
+  existing: { id: string; left_at: string | null; status?: CellGroupMembershipStatus } | null,
+) {
+  if (existing) {
+    const update: {
+      left_at: null;
+      role: CellGroupMemberRole;
+      status: CellGroupMembershipStatus;
+      joined_at?: string;
+    } = {
+      left_at: null,
+      role: "MEMBER",
+      status: "PENDING",
+    };
+    if (existing.left_at) {
+      update.joined_at = new Date().toISOString().slice(0, 10);
+    }
+    const { error } = await admin.from("cell_group_members").update(update as never).eq("id", existing.id);
+    if (error) {
+      return { error: userSafeDatabaseError(error.message) };
+    }
+    return { id: existing.id };
+  }
+
+  const { data, error } = await admin
+    .from("cell_group_members")
+    .insert({
+      cell_group_id: groupId,
+      member_id: memberId,
+      role: "MEMBER",
+      status: "PENDING",
+    } as never)
+    .select("id")
+    .single();
+
+  if (error) {
+    return { error: userSafeDatabaseError(error.message) };
+  }
+
+  return { id: (data as { id: string }).id };
+}
+
+export async function joinMyCellGroup(input: unknown) {
+  const parsed = myCellGroupSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: firstZodError(parsed.error) };
+  }
+
+  const { current, member, error } = await loadMyMember();
+  if (error) {
+    return { error };
+  }
+  if (!member) {
+    return { error: "Ask your campus office to link a membership record to your login." };
+  }
+
+  const admin = createAdminClient();
+  const { data: group, error: groupError } = await admin
+    .from("cell_groups")
+    .select("id, location_id, status, leader_member_id")
+    .eq("id", parsed.data.cell_group_id)
+    .eq("organization_id", current.organizationId)
+    .maybeSingle();
+
+  if (groupError) {
+    logServerError("cellGroup.joinLoad", groupError);
+    return { error: "Unable to join that cell group." };
+  }
+  const groupRow = group as {
+    id: string;
+    location_id: string;
+    status: CellGroupStatus;
+    leader_member_id: string | null;
+  } | null;
+  if (!groupRow || groupRow.status !== "ACTIVE") {
+    return { error: "That cell group is not available." };
+  }
+  if (groupRow.location_id !== member.location_id) {
+    return { error: "You can only join cell groups at your campus." };
+  }
+
+  const openMembership = await findActiveMembership(member.id);
+  if (openMembership.error) {
+    return { error: openMembership.error };
+  }
+  if (openMembership.membership && String(openMembership.membership.cell_group_id) !== groupRow.id) {
+    const status = openMembership.membership.status as CellGroupMembershipStatus | undefined;
+    return {
+      error:
+        status === "PENDING"
+          ? "Cancel your pending cell group request before requesting another."
+          : "Leave your current cell group before requesting another.",
+    };
+  }
+
+  const currentMembership = await findMembershipInGroup(groupRow.id, member.id);
+  if (currentMembership.error) {
+    return { error: currentMembership.error };
+  }
+  if (currentMembership.membership && !currentMembership.membership.left_at) {
+    if (currentMembership.membership.status === "PENDING") {
+      return { error: "Your request is already pending confirmation." };
+    }
+    return { error: "You are already in this cell group." };
+  }
+
+  const upserted = await upsertMyMembership(admin, groupRow.id, member.id, currentMembership.membership);
+  if (upserted.error || !upserted.id) {
+    return { error: upserted.error ?? "Unable to request that cell group." };
+  }
+
+  await writeAuditLog({
+    action: "CELL_GROUP_MEMBER_REQUESTED",
+    entityType: "cell_group_member",
+    entityId: upserted.id,
+    metadata: { cell_group_id: groupRow.id, member_id: member.id, source: "portal" },
+  });
+
+  return { ok: true as const };
+}
+
+export async function leaveMyCellGroup(groupId: string) {
+  const parsed = myCellGroupSchema.safeParse({ cell_group_id: groupId });
+  if (!parsed.success) {
+    return { error: firstZodError(parsed.error) };
+  }
+
+  const { current, member, error } = await loadMyMember();
+  if (error) {
+    return { error };
+  }
+  if (!member) {
+    return { error: "Ask your campus office to link a membership record to your login." };
+  }
+
+  const admin = createAdminClient();
+  const { data: group, error: groupError } = await admin
+    .from("cell_groups")
+    .select("id, name, leader_member_id")
+    .eq("id", parsed.data.cell_group_id)
+    .eq("organization_id", current.organizationId)
+    .maybeSingle();
+
+  if (groupError) {
+    logServerError("cellGroup.leaveLoad", groupError);
+    return { error: "Unable to leave that cell group." };
+  }
+  const groupRow = group as { id: string; name: string; leader_member_id: string | null } | null;
+  if (!groupRow) {
+    return { error: "That cell group is not available." };
+  }
+
+  const { data: membership, error: membershipError } = await admin
+    .from("cell_group_members")
+    .select("id")
+    .eq("cell_group_id", groupRow.id)
+    .eq("member_id", member.id)
+    .is("left_at", null)
+    .maybeSingle();
+
+  if (membershipError) {
+    logServerError("cellGroup.leaveMembership", membershipError);
+    return { error: "Unable to leave that cell group." };
+  }
+  const membershipRow = membership as { id: string } | null;
+  if (!membershipRow) {
+    return { error: "You are not in this cell group." };
+  }
+
+  const { error: leaveError } = await admin
+    .from("cell_group_members")
+    .update({ left_at: new Date().toISOString().slice(0, 10), role: "MEMBER" } as never)
+    .eq("id", membershipRow.id)
+    .eq("member_id", member.id);
+
+  if (leaveError) {
+    logServerError("cellGroup.leaveUpdate", leaveError);
+    return { error: userSafeDatabaseError(leaveError.message) };
+  }
+
+  if (groupRow.leader_member_id === member.id) {
+    await admin.from("cell_groups").update({ leader_member_id: null } as never).eq("id", groupRow.id);
+  }
+
+  await writeAuditLog({
+    action: "CELL_GROUP_MEMBER_LEFT",
+    entityType: "cell_group_member",
+    entityId: membershipRow.id,
+    metadata: { cell_group_id: groupRow.id, member_id: member.id, source: "portal" },
+  });
+
+  return { ok: true as const };
+}
+
+async function assertCanManageCellGroupMembership(groupId: string) {
+  const current = await requireRole(["SUPER_ADMIN", "LOCATION_ADMIN", "MEMBER"]);
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("cell_groups")
+    .select("id, name, location_id, leader_member_id, organization_id")
+    .eq("id", groupId)
+    .eq("organization_id", current.organizationId)
+    .maybeSingle();
+
+  if (error) {
+    logServerError("cellGroup.manageGate", error);
+    return { error: "Unable to update that membership." };
+  }
+
+  const group = data as {
+    id: string;
+    name: string;
+    location_id: string;
+    leader_member_id: string | null;
+    organization_id: string;
+  } | null;
+  if (!group) {
+    return { error: "That cell group is not available." };
+  }
+
+  if (canMutateCellGroup(current, group.location_id)) {
+    return { current, group, admin };
+  }
+
+  const { member } = await loadMyMember();
+  if (member && group.leader_member_id === member.id) {
+    return { current, group, admin };
+  }
+
+  return { error: "Only the cell group leader or campus admin can confirm membership." };
+}
+
+export async function listLedCellGroupJoinRequests() {
+  const { member } = await loadMyMember();
+  if (!member) {
+    return { requests: [] as CellGroupJoinRequest[] };
+  }
+
+  const admin = createAdminClient();
+  const { data: led, error: ledError } = await admin
+    .from("cell_groups")
+    .select("id, name")
+    .eq("organization_id", member.organization_id)
+    .eq("leader_member_id", member.id)
+    .eq("status", "ACTIVE");
+
+  if (ledError) {
+    logServerError("cellGroup.led", ledError);
+    return { requests: [] as CellGroupJoinRequest[] };
+  }
+
+  const groups = (led ?? []) as Array<{ id: string; name: string }>;
+  if (groups.length === 0) {
+    return { requests: [] as CellGroupJoinRequest[] };
+  }
+
+  const { data, error } = await admin
+    .from("cell_group_members")
+    .select(
+      "id, cell_group_id, member_id, joined_at, members(first_name, last_name, membership_number), cell_groups(name)",
+    )
+    .in(
+      "cell_group_id",
+      groups.map((group) => group.id),
+    )
+    .eq("status", "PENDING")
+    .is("left_at", null)
+    .order("joined_at", { ascending: true });
+
+  if (error) {
+    logServerError("cellGroup.ledRequests", error);
+    return { requests: [] as CellGroupJoinRequest[] };
+  }
+
+  return {
+    requests: ((data ?? []) as Array<Record<string, unknown>>).map((row) => {
+      const memberJoin = row.members as MemberNameRow | MemberNameRow[] | null;
+      const memberRow = Array.isArray(memberJoin) ? memberJoin[0] : memberJoin;
+      const group = row.cell_groups as { name: string } | { name: string }[] | null;
+      const groupRow = Array.isArray(group) ? group[0] : group;
+      return {
+        id: String(row.id),
+        cell_group_id: String(row.cell_group_id),
+        cell_group_name: groupRow?.name ?? "Cell group",
+        member_id: String(row.member_id),
+        member_name: memberRow ? displayMemberName(memberRow) : "Unnamed member",
+        membership_number: memberRow?.membership_number ?? "—",
+        joined_at: String(row.joined_at),
+      };
+    }),
+  };
+}
+
+export async function confirmCellGroupMembership(membershipId: string) {
+  const adminClient = createAdminClient();
+  const { data: membership, error: loadError } = await adminClient
+    .from("cell_group_members")
+    .select("id, cell_group_id, member_id, status, left_at")
+    .eq("id", membershipId)
+    .maybeSingle();
+
+  if (loadError) {
+    logServerError("cellGroup.confirmLoad", loadError);
+    return { error: "Unable to confirm that request." };
+  }
+
+  const row = membership as {
+    id: string;
+    cell_group_id: string;
+    member_id: string;
+    status: CellGroupMembershipStatus;
+    left_at: string | null;
+  } | null;
+  if (!row || row.left_at || row.status !== "PENDING") {
+    return { error: "That join request is not pending." };
+  }
+
+  const gate = await assertCanManageCellGroupMembership(row.cell_group_id);
+  if ("error" in gate && gate.error) {
+    return { error: gate.error };
+  }
+
+  const { error } = await adminClient
+    .from("cell_group_members")
+    .update({
+      status: "ACTIVE",
+      joined_at: new Date().toISOString().slice(0, 10),
+    } as never)
+    .eq("id", row.id)
+    .eq("status", "PENDING");
+
+  if (error) {
+    logServerError("cellGroup.confirm", error);
+    return { error: userSafeDatabaseError(error.message) };
+  }
+
+  await writeAuditLog({
+    action: "CELL_GROUP_MEMBER_CONFIRMED",
+    entityType: "cell_group_member",
+    entityId: row.id,
+    metadata: { cell_group_id: row.cell_group_id, member_id: row.member_id },
+  });
+
+  return { ok: true as const, cellGroupId: row.cell_group_id, memberId: row.member_id };
+}
+
+export async function declineCellGroupMembership(membershipId: string) {
+  const adminClient = createAdminClient();
+  const { data: membership, error: loadError } = await adminClient
+    .from("cell_group_members")
+    .select("id, cell_group_id, member_id, status, left_at")
+    .eq("id", membershipId)
+    .maybeSingle();
+
+  if (loadError) {
+    logServerError("cellGroup.declineLoad", loadError);
+    return { error: "Unable to decline that request." };
+  }
+
+  const row = membership as {
+    id: string;
+    cell_group_id: string;
+    member_id: string;
+    status: CellGroupMembershipStatus;
+    left_at: string | null;
+  } | null;
+  if (!row || row.left_at || row.status !== "PENDING") {
+    return { error: "That join request is not pending." };
+  }
+
+  const gate = await assertCanManageCellGroupMembership(row.cell_group_id);
+  if ("error" in gate && gate.error) {
+    return { error: gate.error };
+  }
+
+  const { error } = await adminClient
+    .from("cell_group_members")
+    .update({
+      left_at: new Date().toISOString().slice(0, 10),
+      role: "MEMBER",
+    } as never)
+    .eq("id", row.id)
+    .eq("status", "PENDING");
+
+  if (error) {
+    logServerError("cellGroup.decline", error);
+    return { error: userSafeDatabaseError(error.message) };
+  }
+
+  await writeAuditLog({
+    action: "CELL_GROUP_MEMBER_DECLINED",
+    entityType: "cell_group_member",
+    entityId: row.id,
+    metadata: { cell_group_id: row.cell_group_id, member_id: row.member_id },
+  });
+
+  return { ok: true as const, cellGroupId: row.cell_group_id, memberId: row.member_id };
 }

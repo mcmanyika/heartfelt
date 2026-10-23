@@ -20,7 +20,7 @@ import {
   type TerminalCardChannel,
   type TerminalPaymentMethod,
 } from "@/lib/validators/terminal.schema";
-import { MVP_CURRENCIES, type MvpCurrency } from "@/types";
+import { isMvpCurrencyPreset, TERMINAL_CURRENCY_OPTIONS } from "@/types";
 
 const QUICK_AMOUNTS = [10, 20, 50, 100];
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"] as const;
@@ -28,7 +28,7 @@ const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"] as 
 type CartItem = {
   key: string;
   amount: string;
-  currency: MvpCurrency;
+  currency: string;
   categoryId: string;
   categoryName: string;
   notes: string;
@@ -49,7 +49,7 @@ function cartTotals(items: CartItem[]) {
 export function TerminalKiosk({ terminal }: TerminalKioskProps) {
   const [theme, setTheme] = useTerminalTheme();
   const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState<MvpCurrency>("USD");
+  const [currency, setCurrency] = useState("USD");
   const [categoryId, setCategoryId] = useState(terminal.categories[0]?.id ?? "");
   const [method, setMethod] = useState<TerminalPaymentMethod>("CASH");
   const [cardChannel, setCardChannel] = useState<TerminalCardChannel | null>(null);
@@ -59,6 +59,7 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [categoryNote, setCategoryNote] = useState("");
   const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [currencyModalOpen, setCurrencyModalOpen] = useState(false);
   const [receiptCodeModalOpen, setReceiptCodeModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<TerminalReceiptData | null>(null);
@@ -70,6 +71,7 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
     [categoryId, terminal.categories],
   );
   const otherSelected = isOtherGivingCategory(categoryName);
+  const otherCurrencySelected = !isMvpCurrencyPreset(currency);
   const pendingAmount = Number(amount) > 0;
   const checkoutItems = pendingAmount
     ? [
@@ -120,10 +122,21 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
     setSelectedMember(null);
     setCart([]);
     setCategoryNote("");
+    setCurrency("USD");
     setNoteModalOpen(false);
+    setCurrencyModalOpen(false);
     setReceiptCodeModalOpen(false);
     setError(null);
     setReceipt(null);
+  }
+
+  function selectCurrency(value: (typeof TERMINAL_CURRENCY_OPTIONS)[number]) {
+    setError(null);
+    if (value === "Other") {
+      setCurrencyModalOpen(true);
+      return;
+    }
+    setCurrency(value);
   }
 
   function selectMethod(value: TerminalPaymentMethod) {
@@ -332,18 +345,21 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
               </div>
 
               <div className="flex gap-2">
-                {MVP_CURRENCIES.map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setCurrency(value)}
-                    className={`min-h-12 flex-1 rounded-xl text-sm font-semibold ${
-                      currency === value ? "kiosk-key-active" : "kiosk-key"
-                    }`}
-                  >
-                    {value}
-                  </button>
-                ))}
+                {TERMINAL_CURRENCY_OPTIONS.map((value) => {
+                  const active = value === "Other" ? otherCurrencySelected : currency === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => selectCurrency(value)}
+                      className={`min-h-12 flex-1 rounded-xl text-sm font-semibold ${
+                        active ? "kiosk-key-active" : "kiosk-key"
+                      }`}
+                    >
+                      {value === "Other" && otherCurrencySelected ? currency : value}
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="grid grid-cols-4 gap-2">
@@ -533,6 +549,32 @@ export function TerminalKiosk({ terminal }: TerminalKioskProps) {
             setError(null);
           }}
           onClose={() => setNoteModalOpen(false)}
+        />
+      ) : null}
+      {currencyModalOpen ? (
+        <TerminalPromptDialog
+          title="Other currency"
+          description="Enter the currency code for this gift."
+          label="Currency"
+          placeholder="e.g. EUR"
+          initialValue={otherCurrencySelected ? currency : ""}
+          maxLength={12}
+          saveLabel="Save currency"
+          validate={(value) => {
+            if (/^other$/i.test(value)) {
+              return "Specify the currency.";
+            }
+            if (!/^[A-Za-z]{2,12}$/.test(value)) {
+              return "Use a currency code like EUR.";
+            }
+            return null;
+          }}
+          onSave={(code) => {
+            setCurrency(code);
+            setCurrencyModalOpen(false);
+            setError(null);
+          }}
+          onClose={() => setCurrencyModalOpen(false)}
         />
       ) : null}
       {receiptCodeModalOpen ? (

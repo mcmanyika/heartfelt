@@ -26,10 +26,15 @@ export type EventSort = (typeof EVENT_SORTS)[number];
 export type EventListItem = {
   id: string;
   title: string;
+  attendance_mode: "LIVE" | "ONLINE" | "HYBRID";
   venue: string | null;
+  online_url: string | null;
   start_date: string;
   end_date: string | null;
   registration_required: boolean;
+  is_paid: boolean;
+  price: number | null;
+  currency: string | null;
   capacity: number | null;
   location_id: string | null;
   location_name: string | null;
@@ -51,7 +56,29 @@ export type EventRegistrationRow = {
 };
 
 const EVENT_SELECT =
-  "id, organization_id, location_id, title, description, venue, start_date, end_date, registration_required, capacity, locations(name, code)";
+  "id, organization_id, location_id, title, description, attendance_mode, venue, online_url, start_date, end_date, registration_required, is_paid, price, currency, capacity, locations(name, code)";
+
+function paidFields(data: { is_paid: boolean; price?: string; currency?: string }) {
+  if (!data.is_paid) {
+    return { is_paid: false, price: null, currency: null };
+  }
+  return {
+    is_paid: true,
+    price: Number(data.price),
+    currency: data.currency || null,
+  };
+}
+
+function attendanceFields(data: {
+  attendance_mode: "LIVE" | "ONLINE" | "HYBRID";
+  online_url?: string;
+}) {
+  return {
+    attendance_mode: data.attendance_mode,
+    online_url:
+      data.attendance_mode === "LIVE" ? null : emptyToNull(data.online_url),
+  };
+}
 
 function staffCampusId(current: CurrentUser) {
   return current.staffLocationIds[0] ?? current.primaryLocationId ?? null;
@@ -84,13 +111,20 @@ function mapLocation(row: Record<string, unknown>) {
 }
 
 function mapEvent(row: Record<string, unknown>): EventListItem {
+  const mode = String(row.attendance_mode ?? "LIVE");
   return {
     id: String(row.id),
     title: String(row.title),
+    attendance_mode:
+      mode === "ONLINE" || mode === "HYBRID" ? mode : "LIVE",
     venue: (row.venue as string | null) ?? null,
+    online_url: (row.online_url as string | null) ?? null,
     start_date: String(row.start_date),
     end_date: (row.end_date as string | null) ?? null,
     registration_required: Boolean(row.registration_required),
+    is_paid: Boolean(row.is_paid),
+    price: row.price == null ? null : Number(row.price),
+    currency: (row.currency as string | null) ?? null,
     capacity: row.capacity == null ? null : Number(row.capacity),
     ...mapLocation(row),
   };
@@ -294,6 +328,8 @@ export async function createEvent(input: unknown) {
     return { error: times.error };
   }
 
+  const paid = paidFields(parsed.data);
+  const attendance = attendanceFields(parsed.data);
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("events")
@@ -303,9 +339,11 @@ export async function createEvent(input: unknown) {
       title: parsed.data.title,
       description: emptyToNull(parsed.data.description),
       venue: emptyToNull(parsed.data.venue),
+      ...attendance,
       start_date: times.start,
       end_date: times.end,
       registration_required: parsed.data.registration_required,
+      ...paid,
       capacity: parsed.data.capacity ? Number(parsed.data.capacity) : null,
       created_by: current.id,
     } as never)
@@ -361,6 +399,8 @@ export async function updateEvent(eventId: string, input: unknown) {
     return { error: times.error };
   }
 
+  const paid = paidFields(parsed.data);
+  const attendance = attendanceFields(parsed.data);
   const supabase = await createClient();
   const { error } = await supabase
     .from("events")
@@ -369,9 +409,11 @@ export async function updateEvent(eventId: string, input: unknown) {
       title: parsed.data.title,
       description: emptyToNull(parsed.data.description),
       venue: emptyToNull(parsed.data.venue),
+      ...attendance,
       start_date: times.start,
       end_date: times.end,
       registration_required: parsed.data.registration_required,
+      ...paid,
       capacity: parsed.data.capacity ? Number(parsed.data.capacity) : null,
     } as never)
     .eq("id", eventId)
@@ -431,7 +473,7 @@ export async function setEventRegistrationStatus(
   status: EventRegistrationStatus,
 ) {
   const current = await requireRole(CONTENT_ROLES);
-  if (!EVENT_REGISTRATION_STATUSES.includes(status)) {
+  if (!(EVENT_REGISTRATION_STATUSES as readonly string[]).includes(status)) {
     return { error: "That registration status is not valid." };
   }
 

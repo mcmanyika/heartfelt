@@ -2,6 +2,7 @@ import { getAdminLocationSelection } from "@/lib/auth/admin-location";
 import type { SortDir } from "@/lib/admin/sort";
 import { requireRole } from "@/lib/auth/require-role";
 import type { CurrentUser } from "@/lib/auth/types";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { writeAuditLog } from "@/lib/services/audit.service";
 import { emptyToNull, firstZodError, userSafeDatabaseError } from "@/lib/utils/forms";
@@ -496,6 +497,19 @@ export async function transferMember(input: unknown) {
   if (error) {
     logServerError("member.transfer.update", error);
     return { error: userSafeDatabaseError(error.message) };
+  }
+
+  if (existing.member.profile_id) {
+    const admin = createAdminClient();
+    const { error: profileError } = await admin
+      .from("profiles")
+      .update({ location_id: parsed.data.to_location_id } as never)
+      .eq("id", existing.member.profile_id)
+      .eq("organization_id", current.organizationId);
+
+    if (profileError) {
+      logServerError("member.transfer.profile", profileError);
+    }
   }
 
   await writeAuditLog({

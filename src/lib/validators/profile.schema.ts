@@ -18,5 +18,10 @@ export const myDepartmentSchema = z.object({
   department_id: z.string().uuid("Select a department."),
 });
 
+export const myCellGroupSchema = z.object({
+  cell_group_id: z.string().uuid("Select a cell group."),
+});
+
 export type ProfileInput = z.infer<typeof profileSchema>;
 export type MyDepartmentInput = z.infer<typeof myDepartmentSchema>;
+export type MyCellGroupInput = z.infer<typeof myCellGroupSchema>;

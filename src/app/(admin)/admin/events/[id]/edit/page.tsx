@@ -41,10 +41,15 @@ export default async function EditEventPage({ params }: EditEventPageProps) {
           location_id: event.location_id ?? "",
           title: event.title,
           description: event.description ?? "",
+          attendance_mode: event.attendance_mode,
           venue: event.venue ?? "",
+          online_url: event.online_url ?? "",
           start_date: toDateTimeLocalValue(event.start_date),
           end_date: toDateTimeLocalValue(event.end_date),
           registration_required: event.registration_required,
+          is_paid: event.is_paid,
+          price: event.price == null ? "" : String(event.price),
+          currency: event.currency === "ZAR" ? "ZAR" : event.is_paid ? "USD" : "",
           capacity: event.capacity == null ? "" : String(event.capacity),
         }}
       />

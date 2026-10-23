@@ -10,6 +10,7 @@ type TerminalPromptDialogProps = {
   initialValue?: string;
   maxLength?: number;
   saveLabel?: string;
+  validate?: (value: string) => string | null;
   onSave: (value: string) => void;
   onClose: () => void;
 };
@@ -22,6 +23,7 @@ export function TerminalPromptDialog({
   initialValue = "",
   maxLength = 24,
   saveLabel = "Save",
+  validate,
   onSave,
   onClose,
 }: TerminalPromptDialogProps) {
@@ -37,6 +39,12 @@ export function TerminalPromptDialog({
     const trimmed = value.trim();
     if (!trimmed) {
       setError(`Enter the ${label.toLowerCase()}.`);
+      fieldRef.current?.focus();
+      return;
+    }
+    const validationError = validate?.(trimmed) ?? null;
+    if (validationError) {
+      setError(validationError);
       fieldRef.current?.focus();
       return;
     }

@@ -4,8 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   addCellGroupMember,
+  confirmCellGroupMembership,
   createCellGroup,
+  declineCellGroupMembership,
   deleteCellGroup,
+  joinMyCellGroup,
+  leaveMyCellGroup,
   recordCellGroupAttendance,
   removeCellGroupMember,
   searchLeadersForCellGroup,
@@ -95,5 +99,46 @@ export async function recordCellGroupAttendanceAction(input: unknown) {
   const values = input as { cell_group_id?: string };
   revalidateCellGroupPaths(values.cell_group_id);
   revalidatePath("/member/cell-group");
+  return { ok: true as const };
+}
+
+export async function joinMyCellGroupAction(input: unknown) {
+  const result = await joinMyCellGroup(input);
+  if (result.error) {
+    return { error: result.error };
+  }
+
+  const values = input as { cell_group_id?: string };
+  revalidateCellGroupPaths(values.cell_group_id);
+  return { ok: true as const };
+}
+
+export async function leaveMyCellGroupAction(groupId: string) {
+  const result = await leaveMyCellGroup(groupId);
+  if (result.error) {
+    return { error: result.error };
+  }
+
+  revalidateCellGroupPaths(groupId);
+  return { ok: true as const };
+}
+
+export async function confirmCellGroupMembershipAction(membershipId: string) {
+  const result = await confirmCellGroupMembership(membershipId);
+  if (result.error) {
+    return { error: result.error };
+  }
+
+  revalidateCellGroupPaths(result.cellGroupId, result.memberId);
+  return { ok: true as const };
+}
+
+export async function declineCellGroupMembershipAction(membershipId: string) {
+  const result = await declineCellGroupMembership(membershipId);
+  if (result.error) {
+    return { error: result.error };
+  }
+
+  revalidateCellGroupPaths(result.cellGroupId, result.memberId);
   return { ok: true as const };
 }

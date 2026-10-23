@@ -229,6 +229,7 @@ export type Database = {
           left_at: string | null;
           member_id: string;
           role: Database["public"]["Enums"]["cell_group_member_role"];
+          status: Database["public"]["Enums"]["cell_group_membership_status"];
         };
         Insert: {
           cell_group_id: string;
@@ -238,6 +239,7 @@ export type Database = {
           left_at?: string | null;
           member_id: string;
           role?: Database["public"]["Enums"]["cell_group_member_role"];
+          status?: Database["public"]["Enums"]["cell_group_membership_status"];
         };
         Update: {
           cell_group_id?: string;
@@ -247,6 +249,7 @@ export type Database = {
           left_at?: string | null;
           member_id?: string;
           role?: Database["public"]["Enums"]["cell_group_member_role"];
+          status?: Database["public"]["Enums"]["cell_group_membership_status"];
         };
         Relationships: [
           {
@@ -354,6 +357,7 @@ export type Database = {
           left_at: string | null;
           member_id: string;
           role: Database["public"]["Enums"]["department_member_role"];
+          status: Database["public"]["Enums"]["department_membership_status"];
         };
         Insert: {
           created_at?: string;
@@ -363,6 +367,7 @@ export type Database = {
           left_at?: string | null;
           member_id: string;
           role?: Database["public"]["Enums"]["department_member_role"];
+          status?: Database["public"]["Enums"]["department_membership_status"];
         };
         Update: {
           created_at?: string;
@@ -372,6 +377,7 @@ export type Database = {
           left_at?: string | null;
           member_id?: string;
           role?: Database["public"]["Enums"]["department_member_role"];
+          status?: Database["public"]["Enums"]["department_membership_status"];
         };
         Relationships: [
           {
@@ -466,25 +472,37 @@ export type Database = {
       };
       event_registrations: {
         Row: {
+          amount: number | null;
+          currency: string | null;
           event_id: string;
           id: string;
           member_id: string;
+          paid_at: string | null;
           registered_at: string;
           status: Database["public"]["Enums"]["event_registration_status"];
+          stripe_checkout_session_id: string | null;
         };
         Insert: {
+          amount?: number | null;
+          currency?: string | null;
           event_id: string;
           id?: string;
           member_id: string;
+          paid_at?: string | null;
           registered_at?: string;
           status?: Database["public"]["Enums"]["event_registration_status"];
+          stripe_checkout_session_id?: string | null;
         };
         Update: {
+          amount?: number | null;
+          currency?: string | null;
           event_id?: string;
           id?: string;
           member_id?: string;
+          paid_at?: string | null;
           registered_at?: string;
           status?: Database["public"]["Enums"]["event_registration_status"];
+          stripe_checkout_session_id?: string | null;
         };
         Relationships: [
           {
@@ -505,14 +523,19 @@ export type Database = {
       };
       events: {
         Row: {
+          attendance_mode: Database["public"]["Enums"]["event_attendance_mode"];
           capacity: number | null;
           created_at: string;
           created_by: string | null;
+          currency: string | null;
           description: string | null;
           end_date: string | null;
           id: string;
+          is_paid: boolean;
           location_id: string | null;
+          online_url: string | null;
           organization_id: string;
+          price: number | null;
           registration_required: boolean;
           start_date: string;
           title: string;
@@ -520,14 +543,19 @@ export type Database = {
           venue: string | null;
         };
         Insert: {
+          attendance_mode?: Database["public"]["Enums"]["event_attendance_mode"];
           capacity?: number | null;
           created_at?: string;
           created_by?: string | null;
+          currency?: string | null;
           description?: string | null;
           end_date?: string | null;
           id?: string;
+          is_paid?: boolean;
           location_id?: string | null;
+          online_url?: string | null;
           organization_id: string;
+          price?: number | null;
           registration_required?: boolean;
           start_date: string;
           title: string;
@@ -535,14 +563,19 @@ export type Database = {
           venue?: string | null;
         };
         Update: {
+          attendance_mode?: Database["public"]["Enums"]["event_attendance_mode"];
           capacity?: number | null;
           created_at?: string;
           created_by?: string | null;
+          currency?: string | null;
           description?: string | null;
           end_date?: string | null;
           id?: string;
+          is_paid?: boolean;
           location_id?: string | null;
+          online_url?: string | null;
           organization_id?: string;
+          price?: number | null;
           registration_required?: boolean;
           start_date?: string;
           title?: string;
@@ -1473,10 +1506,13 @@ export type Database = {
     Enums: {
       cell_group_attendance_status: "PRESENT" | "ABSENT" | "EXCUSED";
       cell_group_member_role: "LEADER" | "MEMBER";
+      cell_group_membership_status: "PENDING" | "ACTIVE";
       cell_group_status: "ACTIVE" | "INACTIVE";
       department_member_role: "LEADER" | "MEMBER";
+      department_membership_status: "PENDING" | "ACTIVE";
       department_status: "ACTIVE" | "INACTIVE";
-      event_registration_status: "REGISTERED" | "ATTENDED" | "CANCELLED";
+      event_attendance_mode: "LIVE" | "ONLINE" | "HYBRID";
+      event_registration_status: "REGISTERED" | "ATTENDED" | "CANCELLED" | "PENDING_PAYMENT";
       family_relationship:
         | "SPOUSE"
         | "PARENT"

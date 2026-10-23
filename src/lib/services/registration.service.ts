@@ -426,7 +426,7 @@ export async function activateMemberRegistration(memberId: string) {
   const admin = createAdminClient();
   const { error: statusError } = await admin
     .from("profiles")
-    .update({ status: "ACTIVE" } as never)
+    .update({ status: "ACTIVE", location_id: member.location_id } as never)
     .eq("id", member.profile_id)
     .eq("organization_id", member.organization_id);
 

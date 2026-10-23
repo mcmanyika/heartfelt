@@ -12,7 +12,12 @@ import {
   getEvent,
   listEventRegistrations,
 } from "@/lib/services/event.service";
-import { eventRegistrationStatusLabel, formatDateTime } from "@/lib/utils/format";
+import {
+  eventAttendanceModeLabel,
+  eventRegistrationStatusLabel,
+  formatAmount,
+  formatDateTime,
+} from "@/lib/utils/format";
 
 type EventDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -57,9 +62,34 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
           <h2 className="text-sm font-semibold text-navy">Details</h2>
           <dl className="mt-4 grid gap-3 text-sm">
             <div>
-              <dt className="text-gray-500">Venue</dt>
-              <dd className="text-navy">{event.venue || "—"}</dd>
+              <dt className="text-gray-500">Attendance</dt>
+              <dd className="text-navy">{eventAttendanceModeLabel(event.attendance_mode)}</dd>
             </div>
+            {event.attendance_mode !== "ONLINE" ? (
+              <div>
+                <dt className="text-gray-500">Venue</dt>
+                <dd className="text-navy">{event.venue || "—"}</dd>
+              </div>
+            ) : null}
+            {event.attendance_mode !== "LIVE" ? (
+              <div>
+                <dt className="text-gray-500">Online link</dt>
+                <dd className="text-navy">
+                  {event.online_url ? (
+                    <a
+                      href={event.online_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium text-maroon hover:underline"
+                    >
+                      Open link
+                    </a>
+                  ) : (
+                    "—"
+                  )}
+                </dd>
+              </div>
+            ) : null}
             <div>
               <dt className="text-gray-500">Starts</dt>
               <dd className="text-navy">{formatDateTime(event.start_date)}</dd>
@@ -76,6 +106,14 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
                     ? `Required · ${registeredCount} / ${event.capacity}`
                     : `Required · ${registeredCount} registered`
                   : "Not required"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-gray-500">Ticket</dt>
+              <dd className="text-navy">
+                {event.is_paid && event.price != null && event.currency
+                  ? `${formatAmount(event.price, event.currency)} · online payment`
+                  : "Free"}
               </dd>
             </div>
           </dl>

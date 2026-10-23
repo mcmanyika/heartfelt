@@ -50,13 +50,19 @@ export type PortalEvent = {
   id: string;
   title: string;
   description: string | null;
+  attendance_mode: "LIVE" | "ONLINE" | "HYBRID";
   venue: string | null;
+  online_url: string | null;
   start_date: string;
   end_date: string | null;
   registration_required: boolean;
+  is_paid: boolean;
+  price: number | null;
+  currency: string | null;
   capacity: number | null;
   location_name: string | null;
   registered: boolean;
+  pendingPayment: boolean;
 };
 
 export type PortalAnnouncement = {
@@ -115,11 +121,15 @@ export async function getPortalContext() {
       }
     : null;
 
-  if (!location && current.profile.location_id) {
-    const { data: locationData } = await supabase
+  // Membership campus is the source of truth. Profile.location_id can drift and
+  // RLS may hide the member campus join, so never fall back to a different campus.
+  const campusId = member?.location_id ?? current.profile.location_id;
+  if (campusId && (!location || location.id !== campusId)) {
+    const admin = createAdminClient();
+    const { data: locationData } = await admin
       .from("locations")
       .select("id, name, code, city, country")
-      .eq("id", current.profile.location_id)
+      .eq("id", campusId)
       .maybeSingle();
     location = (locationData as LocationJoin) ?? null;
   }
@@ -128,7 +138,7 @@ export async function getPortalContext() {
     current,
     member,
     location,
-    locationId: member?.location_id ?? current.profile.location_id,
+    locationId: campusId,
   };
 }
 
@@ -161,7 +171,7 @@ export async function listMyGiving(page = 1, q?: string, status?: string) {
 
   const pattern = searchPattern(q);
   if (pattern) {
-    request = request.ilike("transaction_reference", pattern);
+    request = request.or(`transaction_reference.ilike.${pattern},notes.ilike.${pattern}`);
   }
   if (status === "SUCCESS" || status === "PENDING" || status === "FAILED") {
     request = request.eq("status", status);
@@ -234,7 +244,7 @@ export async function listMyEvents() {
   const { data, error } = await supabase
     .from("events")
     .select(
-      "id, title, description, venue, start_date, end_date, registration_required, capacity, location_id, locations(name)",
+      "id, title, description, attendance_mode, venue, online_url, start_date, end_date, registration_required, is_paid, price, currency, capacity, location_id, locations(name)",
     )
     .eq("organization_id", current.organizationId)
     .gte("start_date", new Date().toISOString())
@@ -248,17 +258,26 @@ export async function listMyEvents() {
 
   const events = ((data ?? []) as Array<Record<string, unknown>>).map((row) => {
     const location = row.locations as { name: string } | { name: string }[] | null;
+    const modeRaw = String(row.attendance_mode ?? "LIVE");
+    const attendance_mode: PortalEvent["attendance_mode"] =
+      modeRaw === "ONLINE" ? "ONLINE" : modeRaw === "HYBRID" ? "HYBRID" : "LIVE";
     return {
       id: String(row.id),
       title: String(row.title),
       description: (row.description as string | null) ?? null,
+      attendance_mode,
       venue: (row.venue as string | null) ?? null,
+      online_url: (row.online_url as string | null) ?? null,
       start_date: String(row.start_date),
       end_date: (row.end_date as string | null) ?? null,
       registration_required: Boolean(row.registration_required),
+      is_paid: Boolean(row.is_paid),
+      price: row.price == null ? null : Number(row.price),
+      currency: (row.currency as string | null) ?? null,
       capacity: row.capacity == null ? null : Number(row.capacity),
       location_name: Array.isArray(location) ? location[0]?.name ?? null : location?.name ?? null,
       registered: false,
+      pendingPayment: false,
     };
   });
 
@@ -275,15 +294,20 @@ export async function listMyEvents() {
       events.map((event) => event.id),
     );
 
-  const registered = new Set(
-    ((registrations ?? []) as { event_id: string; status: string }[])
-      .filter((row) => row.status === "REGISTERED")
-      .map((row) => row.event_id),
-  );
+  const registered = new Set<string>();
+  const pendingPayment = new Set<string>();
+  for (const row of (registrations ?? []) as { event_id: string; status: string }[]) {
+    if (row.status === "REGISTERED" || row.status === "ATTENDED") {
+      registered.add(row.event_id);
+    } else if (row.status === "PENDING_PAYMENT") {
+      pendingPayment.add(row.event_id);
+    }
+  }
 
   return events.map((event) => ({
     ...event,
     registered: registered.has(event.id),
+    pendingPayment: pendingPayment.has(event.id),
   }));
 }
 
@@ -386,6 +410,23 @@ export async function registerForEvent(eventId: string) {
     return { error: "Ask your campus office to link a membership record to your login." };
   }
 
+  const events = await listMyEvents();
+  const event = events.find((item) => item.id === eventId);
+  if (!event) {
+    return { error: "That event is not available." };
+  }
+
+  if (!event.registration_required) {
+    return { error: "This event does not take registrations." };
+  }
+
+  if (event.is_paid) {
+    const { createEventRegistrationCheckout } = await import(
+      "@/lib/services/event-registration-payment.service"
+    );
+    return createEventRegistrationCheckout(eventId);
+  }
+
   const supabase = await createClient();
   const { error: rpcError } = await supabase.rpc("register_for_event" as never, {
     p_event_id: eventId,
@@ -403,16 +444,6 @@ export async function registerForEvent(eventId: string) {
   if (!rpcError.message.toLowerCase().includes("could not find")) {
     logServerError("portal.register", rpcError);
     return { error: userSafeDatabaseError(rpcError.message) };
-  }
-
-  const events = await listMyEvents();
-  const event = events.find((item) => item.id === eventId);
-  if (!event) {
-    return { error: "That event is not available." };
-  }
-
-  if (!event.registration_required) {
-    return { error: "This event does not take registrations." };
   }
 
   const { error } = await supabase.from("event_registrations").insert({
