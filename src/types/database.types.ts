@@ -521,6 +521,96 @@ export type Database = {
           },
         ];
       };
+      financial_requisitions: {
+        Row: {
+          id: string;
+          organization_id: string;
+          location_id: string;
+          department_id: string;
+          requested_by_member_id: string;
+          amount: number;
+          currency: string;
+          purpose: string;
+          notes: string | null;
+          status: Database["public"]["Enums"]["financial_requisition_status"];
+          decided_by: string | null;
+          decided_at: string | null;
+          decision_notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          location_id: string;
+          department_id: string;
+          requested_by_member_id: string;
+          amount: number;
+          currency: string;
+          purpose: string;
+          notes?: string | null;
+          status?: Database["public"]["Enums"]["financial_requisition_status"];
+          decided_by?: string | null;
+          decided_at?: string | null;
+          decision_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          location_id?: string;
+          department_id?: string;
+          requested_by_member_id?: string;
+          amount?: number;
+          currency?: string;
+          purpose?: string;
+          notes?: string | null;
+          status?: Database["public"]["Enums"]["financial_requisition_status"];
+          decided_by?: string | null;
+          decided_at?: string | null;
+          decision_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "financial_requisitions_department_id_fkey";
+            columns: ["department_id"];
+            isOneToOne: false;
+            referencedRelation: "departments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "financial_requisitions_location_id_fkey";
+            columns: ["location_id"];
+            isOneToOne: false;
+            referencedRelation: "locations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "financial_requisitions_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "financial_requisitions_requested_by_member_id_fkey";
+            columns: ["requested_by_member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "financial_requisitions_decided_by_fkey";
+            columns: ["decided_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       events: {
         Row: {
           attendance_mode: Database["public"]["Enums"]["event_attendance_mode"];
@@ -1468,6 +1558,10 @@ export type Database = {
         Args: { p_department_id: string };
         Returns: boolean;
       };
+      is_department_leader: {
+        Args: { p_department_id: string };
+        Returns: boolean;
+      };
       is_super_admin: {
         Args: Record<PropertyKey, never>;
         Returns: boolean;
@@ -1478,6 +1572,10 @@ export type Database = {
       };
       staff_can_manage_department: {
         Args: { p_department_id: string };
+        Returns: boolean;
+      };
+      staff_can_review_requisition: {
+        Args: { p_requisition_id: string };
         Returns: boolean;
       };
       register_for_event: {
@@ -1513,6 +1611,7 @@ export type Database = {
       department_status: "ACTIVE" | "INACTIVE";
       event_attendance_mode: "LIVE" | "ONLINE" | "HYBRID";
       event_registration_status: "REGISTERED" | "ATTENDED" | "CANCELLED" | "PENDING_PAYMENT";
+      financial_requisition_status: "SUBMITTED" | "APPROVED" | "REJECTED" | "CANCELLED";
       family_relationship:
         | "SPOUSE"
         | "PARENT"

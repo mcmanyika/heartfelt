@@ -21,6 +21,7 @@ export type CellGroupMeeting = Tables<"cell_group_meetings">;
 export type CellGroupAttendance = Tables<"cell_group_attendance">;
 export type Department = Tables<"departments">;
 export type DepartmentMember = Tables<"department_members">;
+export type FinancialRequisition = Tables<"financial_requisitions">;
 export type Announcement = Tables<"announcements">;
 export type AuditLog = Tables<"audit_logs">;
 
@@ -32,6 +33,7 @@ export type CellGroupAttendanceStatus = Enums<"cell_group_attendance_status">;
 export type DepartmentStatus = Enums<"department_status">;
 export type DepartmentMemberRole = Enums<"department_member_role">;
 export type DepartmentMembershipStatus = Enums<"department_membership_status">;
+export type FinancialRequisitionStatus = Enums<"financial_requisition_status">;
 export type ProfileStatus = Enums<"profile_status">;
 export type MembershipStatus = Enums<"membership_status">;
 export type PaymentMethod = Enums<"payment_method">;

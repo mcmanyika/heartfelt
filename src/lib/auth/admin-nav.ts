@@ -20,7 +20,8 @@ export type AdminNavItem = {
     | "audit"
     | "users"
     | "settings"
-    | "subscriptions";
+    | "subscriptions"
+    | "requisitions";
   roles: readonly AppRole[];
   /** Optional sidebar subheading; consecutive items with the same value are grouped. */
   section?: string;
@@ -91,6 +92,13 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     roles: STAFF_ROLES,
     section: "Financials",
     matchPrefixes: ["/admin/transactions", "/admin/giving"],
+  },
+  {
+    href: "/admin/requisitions",
+    label: "Requisitions",
+    icon: "requisitions",
+    roles: STAFF_ROLES,
+    section: "Financials",
   },
   {
     href: "/admin/terminals",
@@ -184,6 +192,7 @@ export const ADMIN_PAGE_ROLES = {
   departments: ["SUPER_ADMIN", "LOCATION_ADMIN"] as const,
   registrations: ["SUPER_ADMIN", "LOCATION_ADMIN"] as const,
   giving: STAFF_ROLES,
+  requisitions: STAFF_ROLES,
   terminals: STAFF_ROLES,
   paymentButtons: STAFF_ROLES,
   events: ["SUPER_ADMIN", "LOCATION_ADMIN"] as const,

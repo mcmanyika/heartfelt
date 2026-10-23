@@ -1,7 +1,15 @@
 export type MemberNavItem = {
   href: string;
   label: string;
-  icon: "dashboard" | "profile" | "cellGroup" | "departments" | "giving" | "events" | "announcements";
+  icon:
+    | "dashboard"
+    | "profile"
+    | "cellGroup"
+    | "departments"
+    | "requisitions"
+    | "giving"
+    | "events"
+    | "announcements";
 };
 
 export const MEMBER_NAV_ITEMS: readonly MemberNavItem[] = [
@@ -9,6 +17,7 @@ export const MEMBER_NAV_ITEMS: readonly MemberNavItem[] = [
   { href: "/member/profile", label: "Profile", icon: "profile" },
   { href: "/member/cell-group", label: "Cell group", icon: "cellGroup" },
   { href: "/member/departments", label: "Departments", icon: "departments" },
+  { href: "/member/requisitions", label: "Requisitions", icon: "requisitions" },
   { href: "/member/giving", label: "Giving", icon: "giving" },
   { href: "/member/events", label: "Events", icon: "events" },
   { href: "/member/announcements", label: "Announcements", icon: "announcements" },

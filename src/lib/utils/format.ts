@@ -314,6 +314,21 @@ export function cellGroupMembershipStatusLabel(status: string) {
   return departmentMembershipStatusLabel(status);
 }
 
+export function requisitionStatusLabel(status: string) {
+  switch (status) {
+    case "SUBMITTED":
+      return "Submitted";
+    case "APPROVED":
+      return "Approved";
+    case "REJECTED":
+      return "Rejected";
+    case "CANCELLED":
+      return "Cancelled";
+    default:
+      return status.replace(/_/g, " ");
+  }
+}
+
 export function departmentMemberRoleLabel(role: string) {
   return cellGroupMemberRoleLabel(role);
 }
