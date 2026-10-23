@@ -44,26 +44,21 @@ export default async function AdminRequisitionsPage({ searchParams }: Requisitio
 
   return (
     <>
-      <PageHeader
-        title="Requisitions"
-        description="Review fund requests from department heads"
-      />
+      <PageHeader title="Requisitions" />
 
       <form method="get" className="mb-5 flex flex-wrap items-end gap-3">
-        <label className="text-sm font-medium text-navy">
-          Status
-          <select
-            name="status"
-            defaultValue={status}
-            className={`${fieldClassName} mt-1.5 min-w-[10rem]`}
-          >
-            <option value="SUBMITTED">Submitted</option>
-            <option value="APPROVED">Approved</option>
-            <option value="REJECTED">Rejected</option>
-            <option value="CANCELLED">Cancelled</option>
-            <option value="all">All</option>
-          </select>
-        </label>
+        <select
+          name="status"
+          defaultValue={status}
+          className={`${fieldClassName} min-w-[10rem]`}
+          aria-label="Filter by status"
+        >
+          <option value="SUBMITTED">Submitted</option>
+          <option value="APPROVED">Approved</option>
+          <option value="REJECTED">Rejected</option>
+          <option value="CANCELLED">Cancelled</option>
+          <option value="all">All</option>
+        </select>
         <input type="hidden" name="sort" value={sort} />
         <input type="hidden" name="dir" value={dir} />
         <button type="submit" className="rounded-lg bg-navy px-4 py-2.5 text-sm font-semibold text-white">
