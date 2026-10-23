@@ -41,6 +41,17 @@ export function paymentMethodLabel(method: string) {
   return method.replace(/_/g, " ");
 }
 
+/** Shorten long Stripe session/payment ids for table display; keep full value elsewhere. */
+export function formatTransactionReference(value: string | null | undefined) {
+  if (!value) {
+    return "—";
+  }
+  if (/^(cs_|pi_|ch_|txn_)/.test(value) && value.length > 18) {
+    return `${value.slice(0, 10)}…${value.slice(-4)}`;
+  }
+  return value;
+}
+
 export function terminalStatusLabel(status: string) {
   switch (status) {
     case "ONLINE":

@@ -7,7 +7,13 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { requireRole } from "@/lib/auth/require-role";
 import { STAFF_ROLES } from "@/lib/auth/types";
 import { getTerminal, listTerminalGiving } from "@/lib/services/terminal.service";
-import { formatAmount, formatDateTime, paymentMethodLabel, terminalStatusLabel } from "@/lib/utils/format";
+import {
+  formatAmount,
+  formatDateTime,
+  formatTransactionReference,
+  paymentMethodLabel,
+  terminalStatusLabel,
+} from "@/lib/utils/format";
 
 type TerminalDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -110,7 +116,12 @@ export default async function TerminalDetailPage({ params }: TerminalDetailPageP
             {giving.rows.map((row) => (
               <tr key={row.id} className="text-navy">
                 <td className="px-4 py-3">{formatDateTime(row.created_at)}</td>
-                <td className="px-4 py-3 font-medium">{row.transaction_reference}</td>
+                <td
+                  className="px-4 py-3 font-mono text-sm font-medium"
+                  title={row.transaction_reference}
+                >
+                  {formatTransactionReference(row.transaction_reference)}
+                </td>
                 <td className="px-4 py-3">{row.category_name}</td>
                 <td className="px-4 py-3">{formatAmount(row.amount, row.currency)}</td>
                 <td className="px-4 py-3">{paymentMethodLabel(row.payment_method)}</td>

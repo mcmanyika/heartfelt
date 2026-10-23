@@ -582,11 +582,12 @@ export async function listScopedTransactions(range: { from: string; to: string; 
   let request = supabase
     .from("giving_transactions")
     .select(
-      "id, amount, currency, payment_method, status, created_at, giving_category_id, location_id, terminal_id, giving_categories(name), locations(name, code)",
+      "id, amount, currency, payment_method, status, transaction_reference, created_at, notes, giving_category_id, location_id, terminal_id, member_id, members(first_name, last_name, membership_number), giving_categories(name), locations(name, code), payment_terminals(terminal_code, device_name)",
     )
     .eq("organization_id", current.organizationId)
     .gte("created_at", `${range.from}T00:00:00.000Z`)
-    .lte("created_at", `${range.to}T23:59:59.999Z`);
+    .lte("created_at", `${range.to}T23:59:59.999Z`)
+    .order("created_at", { ascending: false });
 
   if (locationId) {
     request = request.eq("location_id", locationId);
@@ -599,6 +600,52 @@ export async function listScopedTransactions(range: { from: string; to: string; 
   }
 
   return { rows: (data ?? []) as Array<Record<string, unknown>>, locationId };
+}
+
+export function mapGivingTransactionRow(row: Record<string, unknown>): GivingTransactionListItem {
+  const member = row.members as
+    | { first_name: string | null; last_name: string | null; membership_number: string }
+    | { first_name: string | null; last_name: string | null; membership_number: string }[]
+    | null;
+  const location = row.locations as
+    | { name: string; code: string }
+    | { name: string; code: string }[]
+    | null;
+  const category = row.giving_categories as { name: string } | { name: string }[] | null;
+  const terminal = row.payment_terminals as
+    | { terminal_code: string; device_name: string }
+    | { terminal_code: string; device_name: string }[]
+    | null;
+  const memberRow = Array.isArray(member) ? member[0] : member;
+  const locationRow = Array.isArray(location) ? location[0] : location;
+  const categoryRow = Array.isArray(category) ? category[0] : category;
+  const terminalRow = Array.isArray(terminal) ? terminal[0] : terminal;
+  const parsedNotes = parseTerminalPaymentNotes(typeof row.notes === "string" ? row.notes : null);
+  const memberName = memberRow
+    ? [memberRow.first_name, memberRow.last_name].filter(Boolean).join(" ").trim() ||
+      memberRow.membership_number
+    : parsedNotes.payer || "Anonymous";
+
+  return {
+    id: String(row.id),
+    amount: Number(row.amount),
+    currency: String(row.currency),
+    payment_method: String(row.payment_method),
+    status: String(row.status),
+    transaction_reference: String(row.transaction_reference ?? ""),
+    created_at: String(row.created_at),
+    member_name: memberName,
+    membership_number: memberRow?.membership_number ?? null,
+    location_name: locationRow?.name ?? "Unknown",
+    location_code: locationRow?.code ?? "—",
+    category_name: categoryRow?.name ?? "Giving",
+    card_channel: parsedNotes.channel,
+    receipt_code: parsedNotes.receiptCode,
+    gift_note: parsedNotes.note,
+    simulated: parsedNotes.simulated,
+    terminal_code: terminalRow?.terminal_code ?? null,
+    terminal_name: terminalRow?.device_name ?? null,
+  };
 }
 
 export function summarizeGiving(rows: Array<Record<string, unknown>>) {

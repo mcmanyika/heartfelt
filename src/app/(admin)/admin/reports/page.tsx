@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ReportBreakdownTable } from "@/components/admin/report-breakdown-table";
 import { ReportTable } from "@/components/admin/report-table";
 import { GivingTrendChart } from "@/components/charts/dashboard-charts";
 import { fieldClassName } from "@/components/ui/form-field";
@@ -14,7 +15,6 @@ import {
   formatDate,
   formatTotals,
   formatTotalsRecord,
-  paymentMethodLabel,
   terminalStatusLabel,
 } from "@/lib/utils/format";
 
@@ -128,27 +128,19 @@ export default async function AdminReportsPage({ searchParams }: ReportsPageProp
             ])}
           />
         ) : null}
-        <ReportTable
+        <ReportBreakdownTable
+          kind="category"
           title="By category"
           empty="No giving in this range"
-          headers={["Category", "Gifts", "Total"]}
-          rows={report.summary.byCategory.map((row) => [
-            row.name,
-            String(row.count),
-            formatTotals(
-              Object.entries(row.totals).map(([currency, amount]) => ({ currency, amount })),
-            ),
-          ])}
+          buckets={report.summary.byCategory}
+          transactions={report.transactions}
         />
-        <ReportTable
+        <ReportBreakdownTable
+          kind="method"
           title="By payment method"
           empty="No giving in this range"
-          headers={["Method", "Gifts", "Total"]}
-          rows={report.byMethod.map((row) => [
-            paymentMethodLabel(row.label),
-            String(row.count),
-            formatTotalsRecord(row.totals),
-          ])}
+          buckets={report.byMethod}
+          transactions={report.transactions}
         />
         <ReportTable
           title="Terminals"

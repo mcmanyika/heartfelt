@@ -1,6 +1,11 @@
 import { requireRole } from "@/lib/auth/require-role";
 import { STAFF_ROLES } from "@/lib/auth/types";
-import { listScopedTransactions, summarizeGiving } from "@/lib/services/giving.service";
+import {
+  listScopedTransactions,
+  mapGivingTransactionRow,
+  summarizeGiving,
+  type GivingTransactionListItem,
+} from "@/lib/services/giving.service";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/utils/log-server-error";
 
@@ -55,6 +60,7 @@ export async function getStaffReport(range: { from: string; to: string; location
   });
   const summary = summarizeGiving(scoped.rows);
   const successful = scoped.rows.filter((row) => row.status === "SUCCESS");
+  const transactions: GivingTransactionListItem[] = successful.map(mapGivingTransactionRow);
 
   const byCurrency = bucketsFromRows(successful, (row) => String(row.currency)).sort((a, b) =>
     a.label.localeCompare(b.label),
@@ -151,5 +157,6 @@ export async function getStaffReport(range: { from: string; to: string; location
     byMethod,
     membersByLocation,
     terminalActivity,
+    transactions,
   };
 }

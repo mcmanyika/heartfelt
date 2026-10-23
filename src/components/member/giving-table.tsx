@@ -1,7 +1,12 @@
 import { DataTable, DataTableBody, DataTableHead } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { PortalGivingRow } from "@/lib/services/portal.service";
-import { formatAmount, formatDateTime, paymentMethodLabel } from "@/lib/utils/format";
+import {
+  formatAmount,
+  formatDateTime,
+  formatTransactionReference,
+  paymentMethodLabel,
+} from "@/lib/utils/format";
 
 type GivingTableProps = {
   rows: PortalGivingRow[];
@@ -37,7 +42,11 @@ export function GivingTable({ rows, compact = false }: GivingTableProps) {
             <td className="px-4 py-3">
               <StatusBadge status={row.status} />
             </td>
-            {!compact ? <td className="px-4 py-3">{row.transaction_reference}</td> : null}
+            {!compact ? (
+              <td className="px-4 py-3 font-mono text-sm" title={row.transaction_reference}>
+                {formatTransactionReference(row.transaction_reference)}
+              </td>
+            ) : null}
           </tr>
         ))}
       </DataTableBody>

@@ -38,6 +38,7 @@ import {
   formatAmount,
   formatDate,
   formatDateTime,
+  formatTransactionReference,
   genderLabel,
   membershipStatusLabel,
 } from "@/lib/utils/format";
@@ -346,7 +347,9 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
                 <td className="px-4 py-3">
                   <StatusBadge status={row.status} />
                 </td>
-                <td className="px-4 py-3">{row.transaction_reference}</td>
+                <td className="px-4 py-3 font-mono text-sm" title={row.transaction_reference}>
+                  {formatTransactionReference(row.transaction_reference)}
+                </td>
               </tr>
             ))}
           </DataTableBody>

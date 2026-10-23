@@ -5,7 +5,7 @@ import { TransactionDetailDialog } from "@/components/admin/transaction-detail-d
 import { DataTable, DataTableBody } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { GivingTransactionListItem } from "@/lib/services/giving.service";
-import { formatAmount, formatDateTime } from "@/lib/utils/format";
+import { formatAmount, formatDateTime, formatTransactionReference } from "@/lib/utils/format";
 import { terminalPaymentDisplay } from "@/lib/validators/terminal.schema";
 
 type TransactionsTableProps = {
@@ -40,7 +40,12 @@ export function TransactionsTable({ transactions, children }: TransactionsTableP
                 }
               }}
             >
-              <td className="px-4 py-3 font-medium">{row.transaction_reference}</td>
+              <td
+                className="px-4 py-3 font-mono text-sm font-medium"
+                title={row.transaction_reference}
+              >
+                {formatTransactionReference(row.transaction_reference)}
+              </td>
               <td className="px-4 py-3">{row.member_name}</td>
               <td className="px-4 py-3">
                 {row.location_name} ({row.location_code})

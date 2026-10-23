@@ -13,7 +13,7 @@ import {
   listPaymentButtonGiving,
   PAYMENT_BUTTON_MUTATE_ROLES,
 } from "@/lib/services/payment-button.service";
-import { formatAmount, formatDateTime } from "@/lib/utils/format";
+import { formatAmount, formatDateTime, formatTransactionReference } from "@/lib/utils/format";
 
 type PaymentButtonDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -119,7 +119,12 @@ export default async function PaymentButtonDetailPage({ params }: PaymentButtonD
             {giving.rows.map((row) => (
               <tr key={row.id} className="text-navy">
                 <td className="px-4 py-3">{formatDateTime(String(row.created_at))}</td>
-                <td className="px-4 py-3 font-medium">{row.transaction_reference}</td>
+                <td
+                  className="px-4 py-3 font-mono text-sm font-medium"
+                  title={String(row.transaction_reference)}
+                >
+                  {formatTransactionReference(String(row.transaction_reference))}
+                </td>
                 <td className="px-4 py-3">{row.category_name}</td>
                 <td className="px-4 py-3">{formatAmount(Number(row.amount), String(row.currency))}</td>
                 <td className="px-4 py-3">

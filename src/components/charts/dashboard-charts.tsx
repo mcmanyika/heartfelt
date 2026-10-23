@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   Bar,
@@ -25,14 +26,20 @@ type DashboardChartsProps = {
   byCategory: Array<{ name: string; count: number }>;
   byMethod: Array<{ name: string; value: number }>;
   membersByLocation: Array<{ name: string; members: number }>;
+  hrefs?: {
+    giving?: string;
+    members?: string;
+    transactions?: string;
+  };
 };
 
 export function GivingTrendChart({
   givingOverTime,
   currencies,
-}: Pick<DashboardChartsProps, "givingOverTime" | "currencies">) {
+  href,
+}: Pick<DashboardChartsProps, "givingOverTime" | "currencies"> & { href?: string }) {
   return (
-    <ChartCard title="Giving over time">
+    <ChartCard title="Giving over time" href={href}>
       {givingOverTime.length === 0 ? (
         <EmptyChart />
       ) : (
@@ -61,15 +68,21 @@ export function GivingTrendChart({
 
 export function MembersByGenderChart({
   membersByGender,
+  href,
 }: {
   membersByGender: Array<{ name: string; value: number }>;
+  href?: string;
 }) {
   return (
-    <ChartCard title="Members by gender" className="h-full">
+    <ChartCard title="Members by gender" className="h-full" href={href}>
       {membersByGender.length === 0 ? (
         <EmptyChart message="No members in this scope" />
       ) : (
-        <LegendPieChart data={membersByGender} emptyLabel="All genders hidden" />
+        <LegendPieChart
+          data={membersByGender}
+          emptyLabel="All genders hidden"
+          interactive={!href}
+        />
       )}
     </ChartCard>
   );
@@ -81,12 +94,17 @@ export function DashboardCharts({
   byCategory,
   byMethod,
   membersByLocation,
+  hrefs,
 }: DashboardChartsProps) {
   return (
     <section aria-label="Charts" className="mt-6 grid gap-4 lg:grid-cols-2">
-      <GivingTrendChart givingOverTime={givingOverTime} currencies={currencies} />
+      <GivingTrendChart
+        givingOverTime={givingOverTime}
+        currencies={currencies}
+        href={hrefs?.giving}
+      />
 
-      <ChartCard title="Giving by category">
+      <ChartCard title="Giving by category" href={hrefs?.giving}>
         {byCategory.length === 0 ? (
           <EmptyChart />
         ) : (
@@ -102,7 +120,7 @@ export function DashboardCharts({
         )}
       </ChartCard>
 
-      <ChartCard title="Members by location">
+      <ChartCard title="Members by location" href={hrefs?.members}>
         {membersByLocation.length === 0 ? (
           <EmptyChart />
         ) : (
@@ -118,11 +136,15 @@ export function DashboardCharts({
         )}
       </ChartCard>
 
-      <ChartCard title="Transactions by payment method">
+      <ChartCard title="Transactions by payment method" href={hrefs?.transactions}>
         {byMethod.length === 0 ? (
           <EmptyChart />
         ) : (
-          <LegendPieChart data={byMethod} emptyLabel="All methods hidden" />
+          <LegendPieChart
+            data={byMethod}
+            emptyLabel="All methods hidden"
+            interactive={!hrefs?.transactions}
+          />
         )}
       </ChartCard>
     </section>
@@ -132,14 +154,16 @@ export function DashboardCharts({
 function LegendPieChart({
   data,
   emptyLabel,
+  interactive = true,
 }: {
   data: Array<{ name: string; value: number }>;
   emptyLabel: string;
+  interactive?: boolean;
 }) {
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const chartData = data.map((entry) => ({
     name: entry.name,
-    value: hidden.has(entry.name) ? 0 : entry.value,
+    value: interactive && hidden.has(entry.name) ? 0 : entry.value,
   }));
   const allHidden = chartData.every((entry) => entry.value === 0);
 
@@ -182,26 +206,36 @@ function LegendPieChart({
       </div>
       <ul className="shrink-0 space-y-1 text-sm">
         {data.map((entry, index) => {
-          const inactive = hidden.has(entry.name);
+          const inactive = interactive && hidden.has(entry.name);
+          const swatch = (
+            <>
+              <span
+                className="size-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                aria-hidden="true"
+              />
+              <span>{entry.name}</span>
+              <span className="tabular-nums text-gray-500">{entry.value}</span>
+            </>
+          );
+
           return (
             <li key={entry.name}>
-              <button
-                type="button"
-                aria-pressed={!inactive}
-                onClick={() => toggle(entry.name)}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-1 py-0.5 text-left text-navy transition-opacity hover:bg-background",
-                  inactive && "opacity-40 line-through",
-                )}
-              >
-                <span
-                  className="size-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                  aria-hidden="true"
-                />
-                <span>{entry.name}</span>
-                <span className="tabular-nums text-gray-500">{entry.value}</span>
-              </button>
+              {interactive ? (
+                <button
+                  type="button"
+                  aria-pressed={!inactive}
+                  onClick={() => toggle(entry.name)}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-1 py-0.5 text-left text-navy transition-opacity hover:bg-background",
+                    inactive && "opacity-40 line-through",
+                  )}
+                >
+                  {swatch}
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 px-1 py-0.5 text-navy">{swatch}</div>
+              )}
             </li>
           );
         })}
@@ -214,17 +248,34 @@ function ChartCard({
   title,
   children,
   className,
+  href,
 }: {
   title: string;
   children: React.ReactNode;
   className?: string;
+  href?: string;
 }) {
-  return (
-    <div className={cn("rounded-2xl border border-border bg-card p-5", className)}>
+  const cardClassName = cn(
+    "rounded-2xl border border-border bg-card p-5",
+    href && "block transition-colors hover:border-navy/25 hover:bg-background/60",
+    className,
+  );
+  const body = (
+    <>
       <p className="text-sm font-semibold text-navy">{title}</p>
       <div className="mt-4">{children}</div>
-    </div>
+    </>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className={cardClassName} aria-label={`View ${title}`}>
+        {body}
+      </Link>
+    );
+  }
+
+  return <div className={cardClassName}>{body}</div>;
 }
 
 function EmptyChart({ message = "No giving in this range" }: { message?: string }) {

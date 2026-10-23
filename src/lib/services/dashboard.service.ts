@@ -2,7 +2,12 @@ import { LIST_PAGE_SIZE, searchPattern } from "@/lib/admin/list-page";
 import { getAdminLocationSelection } from "@/lib/auth/admin-location";
 import { requireRole } from "@/lib/auth/require-role";
 import { STAFF_ROLES } from "@/lib/auth/types";
-import { listScopedTransactions, summarizeGiving } from "@/lib/services/giving.service";
+import {
+  listScopedTransactions,
+  mapGivingTransactionRow,
+  summarizeGiving,
+  type GivingTransactionListItem,
+} from "@/lib/services/giving.service";
 import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/utils/log-server-error";
 
@@ -90,7 +95,7 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
   let recentGivingQuery = supabase
     .from("giving_transactions")
     .select(
-      "id, amount, currency, payment_method, status, transaction_reference, created_at, members(first_name, last_name, membership_number), giving_categories(name)",
+      "id, amount, currency, payment_method, status, transaction_reference, created_at, notes, members(first_name, last_name, membership_number), giving_categories(name), locations(name, code), payment_terminals(terminal_code, device_name)",
     )
     .eq("organization_id", current.organizationId)
     .order("created_at", { ascending: false })
@@ -172,29 +177,8 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
       };
     }),
     recentGiving: ((recentGiving.data ?? []) as Array<Record<string, unknown>>)
-      .map((row) => {
-        const member = row.members as
-          | { first_name: string | null; last_name: string | null; membership_number: string }
-          | { first_name: string | null; last_name: string | null; membership_number: string }[]
-          | null;
-        const category = row.giving_categories as { name: string } | { name: string }[] | null;
-        const memberRow = Array.isArray(member) ? member[0] : member;
-        return {
-          id: String(row.id),
-          amount: Number(row.amount),
-          currency: String(row.currency),
-          status: String(row.status),
-          payment_method: String(row.payment_method),
-          transaction_reference: String(row.transaction_reference),
-          created_at: String(row.created_at),
-          member_name: memberRow
-            ? [memberRow.first_name, memberRow.last_name].filter(Boolean).join(" ").trim() ||
-              memberRow.membership_number
-            : "Anonymous",
-          category_name: Array.isArray(category) ? category[0]?.name ?? "Giving" : category?.name ?? "Giving",
-        };
-      })
-      .filter((row) => {
+      .map((row) => mapGivingTransactionRow(row))
+      .filter((row: GivingTransactionListItem) => {
         if (!pattern) {
           return true;
         }

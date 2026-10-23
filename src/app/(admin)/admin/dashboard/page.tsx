@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RecentTransactionsFeed } from "@/components/admin/recent-transactions-feed";
 import { DashboardCharts, MembersByGenderChart } from "@/components/charts/dashboard-charts";
 import { EmptyState } from "@/components/ui/empty-state";
 import { fieldClassName } from "@/components/ui/form-field";
@@ -7,7 +8,7 @@ import { GivingTotalsValue } from "@/components/ui/giving-totals";
 import { SearchInput } from "@/components/ui/search-input";
 import { StatCard } from "@/components/ui/stat-card";
 import { getDashboardData, parseDashboardRange } from "@/lib/services/dashboard.service";
-import { formatAmount, formatDate, formatDateTime, paymentMethodLabel } from "@/lib/utils/format";
+import { formatDate, paymentMethodLabel } from "@/lib/utils/format";
 
 type DashboardPageProps = {
   searchParams: Promise<{ from?: string; to?: string; q?: string }>;
@@ -27,6 +28,12 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
       month,
       ...data.summary.byMonth[month],
     }));
+  const rangeQuery = `from=${range.from}&to=${range.to}`;
+  const transactionsHref = `/admin/transactions?${rangeQuery}`;
+  const reportsHref = `/admin/reports?${rangeQuery}`;
+  const membersHref =
+    data.current.isSuperAdmin || data.current.isLocationAdmin ? "/admin/members" : undefined;
+  const locationsHref = data.current.isSuperAdmin ? "/admin/locations" : undefined;
 
   return (
     <>
@@ -34,7 +41,7 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
         title="Dashboard"
         actions={
           <Link
-            href={`/admin/reports?from=${range.from}&to=${range.to}`}
+            href={reportsHref}
             className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-navy"
           >
             View reports
@@ -67,26 +74,35 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
           label="Total Giving"
           value={<GivingTotalsValue totals={data.summary.totals} layout="columns" />}
           hint={scope}
+          href={transactionsHref}
         />
-        <MembersByGenderChart membersByGender={data.membersByGender} />
+        <MembersByGenderChart membersByGender={data.membersByGender} href={membersHref} />
       </section>
 
       <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total Members" value={String(data.memberCount)} hint={scope} />
+        <StatCard
+          label="Total Members"
+          value={String(data.memberCount)}
+          hint={scope}
+          href={membersHref}
+        />
         <StatCard
           label="Total Transactions"
           value={String(data.summary.successfulCount)}
           hint={`${data.summary.totalCount} recorded in range`}
+          href={transactionsHref}
         />
         <StatCard
           label="Active Locations"
           value={String(data.activeLocations)}
           hint={data.selection.location ? "Selected campus" : "Across the organization"}
+          href={locationsHref}
         />
         <StatCard
           label="Online Terminals"
           value={String(data.onlineTerminals)}
           hint={`${data.terminalCount} registered`}
+          href="/admin/terminals"
         />
       </section>
 
@@ -99,19 +115,18 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
           value,
         }))}
         membersByLocation={data.membersByLocation}
+        hrefs={{
+          giving: reportsHref,
+          members: membersHref,
+          transactions: transactionsHref,
+        }}
       />
 
       <section aria-label="Activity" className="mt-6 grid gap-4 lg:grid-cols-2">
-        <FeedCard
-          title="Recent Transactions"
-          href="/admin/transactions"
+        <RecentTransactionsFeed
+          transactions={data.recentGiving}
           empty={params.q ? "No matching transactions" : "No giving recorded yet"}
-          items={data.recentGiving.map((row) => ({
-            id: row.id,
-            title: formatAmount(row.amount, row.currency),
-            meta: `${row.member_name} · ${row.category_name}`,
-            extra: formatDateTime(row.created_at),
-          }))}
+          viewAllHref={transactionsHref}
         />
         <FeedCard
           title="Recent Members"
