@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { DeleteRecordButton } from "@/components/admin/delete-record-button";
 import { FormField, fieldClassName } from "@/components/ui/form-field";
+import { Modal } from "@/components/ui/modal";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
   joinMyDepartmentAction,
@@ -127,19 +128,7 @@ export function MemberDepartmentsEditor({ current, available }: MemberDepartment
       ) : null}
 
       {requestOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/50"
-            aria-label="Close dialog"
-            onClick={closeRequest}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="request-department-title"
-            className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl"
-          >
+        <Modal onClose={closeRequest} labelledBy="request-department-title" className="max-w-md p-6">
             <h2 id="request-department-title" className="text-lg font-semibold text-navy">
               Request to join
             </h2>
@@ -175,7 +164,7 @@ export function MemberDepartmentsEditor({ current, available }: MemberDepartment
                 <button
                   type="button"
                   onClick={closeRequest}
-                  className="rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-navy"
+                  className="rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-semibold text-navy hover:bg-background"
                 >
                   Cancel
                 </button>
@@ -188,8 +177,7 @@ export function MemberDepartmentsEditor({ current, available }: MemberDepartment
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       ) : null}
     </div>
   );

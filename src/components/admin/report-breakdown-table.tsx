@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { TransactionDetailDialog } from "@/components/admin/transaction-detail-dialog";
 import { DataTable, DataTableBody, DataTableHead } from "@/components/ui/data-table";
+import { Modal } from "@/components/ui/modal";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { GivingTransactionListItem } from "@/lib/services/giving.service";
 import {
@@ -63,19 +64,6 @@ export function ReportBreakdownTable(props: ReportBreakdownTableProps) {
   }, [bucket, props]);
 
   const selected = filtered.find((row) => row.id === selectedId) ?? null;
-
-  useEffect(() => {
-    if (!bucket) {
-      return;
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && !selectedId) {
-        setBucket(null);
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [bucket, selectedId]);
 
   function openBucket(key: string, title: string) {
     setSelectedId(null);
@@ -146,19 +134,12 @@ export function ReportBreakdownTable(props: ReportBreakdownTableProps) {
       </section>
 
       {bucket ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-navy-deep/40"
-            aria-label="Close dialog"
-            onClick={() => setBucket(null)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="report-transactions-title"
-            className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-lg"
-          >
+        <Modal
+          onClose={() => setBucket(null)}
+          labelledBy="report-transactions-title"
+          className="flex max-h-[90vh] max-w-3xl flex-col overflow-hidden p-0"
+          closeOnEscape={!selected}
+        >
             <div className="border-b border-border px-6 py-4">
               <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
                 {props.kind === "category" ? "Category" : "Payment method"}
@@ -230,14 +211,13 @@ export function ReportBreakdownTable(props: ReportBreakdownTableProps) {
             <div className="flex justify-end border-t border-border px-6 py-4">
               <button
                 type="button"
-                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-navy"
+                className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-navy hover:bg-background"
                 onClick={() => setBucket(null)}
               >
                 Close
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       ) : null}
 
       {selected ? (

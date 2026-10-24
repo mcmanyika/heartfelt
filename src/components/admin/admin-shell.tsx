@@ -55,7 +55,7 @@ export function AdminShell({
         <div className="lg:hidden">
           <button
             type="button"
-            className="fixed inset-0 z-40 bg-navy-deep/50"
+            className="fixed inset-0 z-40 bg-navy-deep/45 backdrop-blur-sm supports-[backdrop-filter]:bg-navy-deep/35"
             aria-label="Close menu"
             onClick={() => setOpen(false)}
           />

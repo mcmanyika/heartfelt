@@ -55,7 +55,7 @@ export function TerminalPromptDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
         type="button"
-        className="absolute inset-0 bg-black/70"
+        className="absolute inset-0 bg-navy-deep/55 backdrop-blur-sm supports-[backdrop-filter]:bg-navy-deep/40"
         aria-label="Close dialog"
         onClick={onClose}
       />

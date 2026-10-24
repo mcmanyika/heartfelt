@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { fieldClassName } from "@/components/ui/form-field";
+import { Modal } from "@/components/ui/modal";
 import { roleLabel } from "@/lib/auth/permissions";
 import { setUserRolesAction } from "@/lib/services/user.actions";
 import type { StaffRoleAssignment } from "@/lib/services/user.service";
@@ -70,19 +71,11 @@ export function UserRolesDialog({
         Edit
       </button>
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-navy-deep/40"
-            aria-label="Close dialog"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={`roles-title-${userId}`}
-            className="relative w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-lg"
-          >
+        <Modal
+          onClose={() => setOpen(false)}
+          labelledBy={`roles-title-${userId}`}
+          className="max-h-[90vh] max-w-lg overflow-y-auto p-6"
+        >
             <h2 id={`roles-title-${userId}`} className="text-lg font-semibold text-navy">
               Edit roles
             </h2>
@@ -164,7 +157,7 @@ export function UserRolesDialog({
             <div className="mt-6 flex justify-end gap-2">
               <button
                 type="button"
-                className="rounded-lg border border-border px-3 py-2 text-sm text-navy"
+                className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-navy hover:bg-background"
                 onClick={() => setOpen(false)}
                 disabled={isPending}
               >
@@ -195,8 +188,7 @@ export function UserRolesDialog({
                 {isPending ? "Saving..." : "Save roles"}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       ) : null}
     </>
   );
