@@ -6,6 +6,7 @@ import {
   CircleDollarSign,
   ClipboardList,
   CreditCard,
+  Handshake,
   LayoutDashboard,
   Link2,
   Megaphone,
@@ -38,4 +39,5 @@ export const ADMIN_NAV_ICONS: Record<AdminNavItem["icon"], LucideIcon> = {
   users: UserCog,
   settings: Settings,
   subscriptions: CreditCard,
+  affiliate: Handshake,
 };

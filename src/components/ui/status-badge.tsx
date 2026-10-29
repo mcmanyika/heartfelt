@@ -17,6 +17,8 @@ const TONES: Record<string, string> = {
   CANCELLED: "bg-gray-100 text-gray-700 border-gray-200",
   FAILED: "bg-red-50 text-red-800 border-red-200",
   REFUNDED: "bg-gray-100 text-gray-700 border-gray-200",
+  PAID: "bg-emerald-50 text-emerald-800 border-emerald-200",
+  VOID: "bg-gray-100 text-gray-700 border-gray-200",
   ONLINE: "bg-emerald-50 text-emerald-800 border-emerald-200",
   OFFLINE: "bg-gray-100 text-gray-700 border-gray-200",
   MAINTENANCE: "bg-amber-50 text-amber-900 border-amber-200",

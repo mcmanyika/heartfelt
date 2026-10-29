@@ -21,7 +21,8 @@ export type AdminNavItem = {
     | "users"
     | "settings"
     | "subscriptions"
-    | "requisitions";
+    | "requisitions"
+    | "affiliate";
   roles: readonly AppRole[];
   /** Optional sidebar subheading; consecutive items with the same value are grouped. */
   section?: string;
@@ -175,6 +176,13 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     roles: ["SUPER_ADMIN"],
     section: "Administration",
   },
+  {
+    href: "/admin/affiliate",
+    label: "Affiliate",
+    icon: "affiliate",
+    roles: ["SUPER_ADMIN"],
+    section: "Administration",
+  },
 ] as const;
 
 export function isAdminNavActive(item: AdminNavItem, pathname: string) {
@@ -206,4 +214,5 @@ export const ADMIN_PAGE_ROLES = {
   audit: ["SUPER_ADMIN"] as const,
   users: ["SUPER_ADMIN"] as const,
   settings: ["SUPER_ADMIN"] as const,
+  affiliate: ["SUPER_ADMIN"] as const,
 };

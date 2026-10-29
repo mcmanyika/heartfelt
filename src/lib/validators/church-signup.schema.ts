@@ -29,6 +29,7 @@ export const churchSignupSchema = z
     email: z.string().trim().email("Enter a valid email address."),
     password: z.string().min(8, "Password must be at least 8 characters."),
     confirm_password: z.string().min(8, "Confirm your password."),
+    referral_code: z.string().trim().max(48).optional().or(z.literal("")),
   })
   .refine((value) => value.password === value.confirm_password, {
     message: "Passwords do not match.",

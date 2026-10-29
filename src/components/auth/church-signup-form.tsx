@@ -10,9 +10,10 @@ import { churchSignupSchema, type ChurchSignupInput } from "@/lib/validators/chu
 
 type ChurchSignupFormProps = {
   rootDomain: string;
+  referralCode?: string;
 };
 
-export function ChurchSignupForm({ rootDomain }: ChurchSignupFormProps) {
+export function ChurchSignupForm({ rootDomain, referralCode = "" }: ChurchSignupFormProps) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const host = normalizeRootDomain(rootDomain) || rootDomain;
@@ -37,6 +38,7 @@ export function ChurchSignupForm({ rootDomain }: ChurchSignupFormProps) {
       email: "",
       password: "",
       confirm_password: "",
+      referral_code: referralCode,
     },
   });
 
@@ -132,6 +134,21 @@ export function ChurchSignupForm({ rootDomain }: ChurchSignupFormProps) {
           disabled={isPending}
           className={fieldClassName}
           {...register("confirm_password")}
+        />
+      </FormField>
+
+      <FormField
+        label="Referral code"
+        htmlFor="referral_code"
+        error={errors.referral_code?.message}
+        hint={referralCode ? "This signup was referred by another church." : "Optional. Enter a referring church address if you have one."}
+      >
+        <input
+          id="referral_code"
+          autoCapitalize="none"
+          disabled={isPending}
+          className={fieldClassName}
+          {...register("referral_code")}
         />
       </FormField>
 

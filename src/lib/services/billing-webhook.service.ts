@@ -2,6 +2,10 @@ import "server-only";
 
 import type Stripe from "stripe";
 import type { PackagePlan } from "@/lib/billing/plans";
+import {
+  createAffiliateCommissionForPayment,
+  voidAffiliateCommissionForPayment,
+} from "@/lib/services/affiliate.service";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/utils/log-server-error";
 
@@ -113,6 +117,16 @@ export async function recordPackagePayment(session: Stripe.Checkout.Session) {
   }
 
   const paymentId = String((saved.data as { id: string }).id);
+
+  if (setupCents > 0) {
+    await createAffiliateCommissionForPayment({
+      packagePaymentId: paymentId,
+      referredOrganizationId: organizationId,
+      setupCents,
+      currency: session.currency ?? "usd",
+    });
+  }
+
   const { error: auditError } = await admin.from("audit_logs").insert({
     organization_id: organizationId,
     action: "PACKAGE_PAYMENT_RECORDED",
@@ -121,6 +135,7 @@ export async function recordPackagePayment(session: Stripe.Checkout.Session) {
     metadata: {
       plan,
       amount_cents: amountCents,
+      setup_cents: setupCents,
       stripe_checkout_session_id: session.id,
       source: "stripe_webhook",
     },
@@ -170,6 +185,8 @@ export async function markPackagePaymentRefunded(paymentIntentId: string) {
   if (error) {
     throw error;
   }
+
+  await voidAffiliateCommissionForPayment(payment.id);
 
   const billingResult = await admin
     .from("organization_billing")

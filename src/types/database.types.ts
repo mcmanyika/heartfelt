@@ -1068,6 +1068,76 @@ export type Database = {
           },
         ];
       };
+      affiliate_commissions: {
+        Row: {
+          id: string;
+          referrer_organization_id: string;
+          referred_organization_id: string;
+          package_payment_id: string;
+          setup_cents: number;
+          rate_bps: number;
+          commission_cents: number;
+          currency: string;
+          status: string;
+          created_at: string;
+          approved_at: string | null;
+          paid_at: string | null;
+          voided_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          referrer_organization_id: string;
+          referred_organization_id: string;
+          package_payment_id: string;
+          setup_cents: number;
+          rate_bps?: number;
+          commission_cents: number;
+          currency?: string;
+          status?: string;
+          created_at?: string;
+          approved_at?: string | null;
+          paid_at?: string | null;
+          voided_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          referrer_organization_id?: string;
+          referred_organization_id?: string;
+          package_payment_id?: string;
+          setup_cents?: number;
+          rate_bps?: number;
+          commission_cents?: number;
+          currency?: string;
+          status?: string;
+          created_at?: string;
+          approved_at?: string | null;
+          paid_at?: string | null;
+          voided_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_commissions_referrer_organization_id_fkey";
+            columns: ["referrer_organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "affiliate_commissions_referred_organization_id_fkey";
+            columns: ["referred_organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "affiliate_commissions_package_payment_id_fkey";
+            columns: ["package_payment_id"];
+            isOneToOne: true;
+            referencedRelation: "package_payments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       organization_billing: {
         Row: {
           branches_setup: number;
@@ -1107,6 +1177,42 @@ export type Database = {
             foreignKeyName: "organization_billing_organization_id_fkey";
             columns: ["organization_id"];
             isOneToOne: true;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      organization_referrals: {
+        Row: {
+          referred_organization_id: string;
+          referrer_organization_id: string;
+          referral_code: string;
+          created_at: string;
+        };
+        Insert: {
+          referred_organization_id: string;
+          referrer_organization_id: string;
+          referral_code: string;
+          created_at?: string;
+        };
+        Update: {
+          referred_organization_id?: string;
+          referrer_organization_id?: string;
+          referral_code?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "organization_referrals_referred_organization_id_fkey";
+            columns: ["referred_organization_id"];
+            isOneToOne: true;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "organization_referrals_referrer_organization_id_fkey";
+            columns: ["referrer_organization_id"];
+            isOneToOne: false;
             referencedRelation: "organizations";
             referencedColumns: ["id"];
           },

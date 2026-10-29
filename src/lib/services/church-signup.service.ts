@@ -1,3 +1,4 @@
+import { recordOrganizationReferral } from "@/lib/services/affiliate.service";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requestTenantOrigin } from "@/lib/tenant/request-origin";
 import { emptyToNull, firstZodError, userSafeDatabaseError } from "@/lib/utils/forms";
@@ -212,6 +213,14 @@ export async function createChurchOrganization(input: unknown) {
     }
   }
 
+  const referral = await recordOrganizationReferral({
+    referredOrganizationId: organizationId,
+    referralCode: emptyToNull(parsed.data.referral_code),
+  });
+  if (referral.error) {
+    logServerError("church-signup.referral", referral.error);
+  }
+
   const { error: auditError } = await admin.from("audit_logs").insert({
     organization_id: organizationId,
     user_id: userId,
@@ -222,6 +231,7 @@ export async function createChurchOrganization(input: unknown) {
       slug: parsed.data.slug,
       short_code: parsed.data.short_code,
       location_id: locationId,
+      referred_by: referral.ok && referral.recorded ? referral.referrerOrganizationId : null,
     },
   } as never);
 
