@@ -154,6 +154,15 @@ export async function listLedDepartmentsForRequisition() {
   return { departments: (data ?? []) as LedDepartmentOption[] };
 }
 
+/** Member portal: department heads only. Staff use /admin/requisitions. */
+export async function canAccessMemberRequisitions() {
+  const led = await listLedDepartmentsForRequisition();
+  if (led.error) {
+    return { allowed: false, error: led.error };
+  }
+  return { allowed: led.departments.length > 0 };
+}
+
 export async function listMyRequisitions() {
   const { member, error } = await loadMyMember();
   if (error) {

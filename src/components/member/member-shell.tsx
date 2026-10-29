@@ -14,7 +14,11 @@ import {
 } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { ChurchLogo } from "@/components/ui/church-logo";
-import { isMemberNavActive, MEMBER_NAV_ITEMS } from "@/lib/auth/member-nav";
+import {
+  isMemberNavActive,
+  MEMBER_NAV_ITEMS,
+  type MemberNavItem,
+} from "@/lib/auth/member-nav";
 import { cn } from "@/lib/utils/cn";
 
 const ICONS = {
@@ -32,6 +36,7 @@ type MemberShellProps = {
   firstName: string;
   organizationName: string;
   organizationLogoUrl?: string | null;
+  navItems?: MemberNavItem[];
   children: React.ReactNode;
 };
 
@@ -39,9 +44,11 @@ export function MemberShell({
   firstName,
   organizationName,
   organizationLogoUrl,
+  navItems = [...MEMBER_NAV_ITEMS],
   children,
 }: MemberShellProps) {
   const pathname = usePathname();
+  const mobileItems = navItems.slice(0, 4);
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-background">
@@ -64,15 +71,15 @@ export function MemberShell({
           <LogoutButton />
         </div>
         <nav aria-label="Member" className="hidden border-t border-white/10 sm:block">
-          <ul className="mx-auto flex w-full max-w-5xl gap-1 px-4 sm:px-6">
-            {MEMBER_NAV_ITEMS.map((item) => {
+          <ul className="mx-auto flex w-full max-w-5xl gap-1 overflow-x-auto px-4 sm:px-6">
+            {navItems.map((item) => {
               const active = isMemberNavActive(item.href, pathname);
               return (
                 <li key={item.href}>
                   <Link
                     href={item.href}
                     className={cn(
-                      "block border-b-2 px-3 py-3 text-sm font-medium",
+                      "block whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium",
                       active
                         ? "border-gold text-white"
                         : "border-transparent text-white/70 hover:text-white",
@@ -97,7 +104,7 @@ export function MemberShell({
         className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-card/95 backdrop-blur sm:hidden"
       >
         <ul className="grid grid-cols-4">
-          {MEMBER_NAV_ITEMS.map((item) => {
+          {mobileItems.map((item) => {
             const Icon = ICONS[item.icon];
             const active = isMemberNavActive(item.href, pathname);
             return (

@@ -1,12 +1,19 @@
+import { redirect } from "next/navigation";
 import { RequisitionForm } from "@/components/member/requisition-form";
 import { RequisitionList } from "@/components/member/requisition-list";
 import { PageHeader } from "@/components/ui/page-header";
 import {
+  canAccessMemberRequisitions,
   listLedDepartmentsForRequisition,
   listMyRequisitions,
 } from "@/lib/services/requisition.service";
 
 export default async function MemberRequisitionsPage() {
+  const access = await canAccessMemberRequisitions();
+  if (!access.allowed) {
+    redirect("/member/dashboard");
+  }
+
   const [led, mine] = await Promise.all([
     listLedDepartmentsForRequisition(),
     listMyRequisitions(),

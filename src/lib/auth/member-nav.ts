@@ -23,6 +23,15 @@ export const MEMBER_NAV_ITEMS: readonly MemberNavItem[] = [
   { href: "/member/announcements", label: "Announcements", icon: "announcements" },
 ] as const;
 
+export function memberNavItemsForAccess(options: { canAccessRequisitions: boolean }) {
+  return MEMBER_NAV_ITEMS.filter((item) => {
+    if (item.href === "/member/requisitions") {
+      return options.canAccessRequisitions;
+    }
+    return true;
+  });
+}
+
 export function isMemberNavActive(href: string, pathname: string) {
   if (href === "/member/dashboard") {
     return pathname === "/member/dashboard" || pathname === "/member";
