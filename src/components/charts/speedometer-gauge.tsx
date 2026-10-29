@@ -87,22 +87,22 @@ export function SpeedometerGauge({
   return (
     <article
       className={cn(
-        "chart-rise rounded-2xl border border-border/80 bg-card p-5 shadow-[0_1px_2px_rgba(11,31,58,0.04)]",
+        "chart-rise rounded-md border border-border/80 bg-card px-3 py-3 shadow-[0_1px_2px_rgba(11,31,58,0.04)]",
         className,
       )}
       style={{ animationDelay: `${animationDelayMs}ms` }}
     >
-      <p className="text-center text-xs font-semibold tracking-[0.12em] text-gray-500 uppercase">
+      <p className="text-center text-[11px] font-semibold tracking-[0.12em] text-gray-500 uppercase">
         {label}
       </p>
-      <div className="relative mx-auto mt-1 h-40 w-full max-w-[240px]">
+      <div className="relative mx-auto h-28 w-full max-w-[180px]">
         <ResponsiveContainer width="100%" height="100%">
           <RadialBarChart
             cx="50%"
             cy="78%"
             innerRadius="68%"
             outerRadius="100%"
-            barSize={16}
+            barSize={12}
             data={data}
             startAngle={180}
             endAngle={0}
@@ -111,7 +111,7 @@ export function SpeedometerGauge({
             <RadialBar
               background={{ fill: "#e8eaee" }}
               dataKey="value"
-              cornerRadius={10}
+              cornerRadius={8}
               isAnimationActive={!reducedMotion}
               animationBegin={animationDelayMs}
               animationDuration={1100}
@@ -119,11 +119,11 @@ export function SpeedometerGauge({
             />
           </RadialBarChart>
         </ResponsiveContainer>
-        <div className="pointer-events-none absolute inset-x-0 bottom-3 text-center">
-          <p className="text-3xl font-semibold tracking-tight text-navy">{displayPercent}%</p>
+        <div className="pointer-events-none absolute inset-x-0 bottom-1 text-center">
+          <p className="text-2xl font-semibold tracking-tight text-navy">{displayPercent}%</p>
         </div>
       </div>
-      {detail ? <p className="mt-1 text-center text-xs text-gray-500">{detail}</p> : null}
+      {detail ? <p className="text-center text-[11px] text-gray-500">{detail}</p> : null}
     </article>
   );
 }

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { AdminHeaderNav } from "@/components/admin/admin-header-nav";
 import { AdminSidebar, type AdminSidebarUser } from "@/components/admin/admin-sidebar";
+import { AppFooter } from "@/components/ui/app-footer";
 import {
   LocationSelector,
   type LocationOption,
@@ -60,7 +61,7 @@ export function AdminShell({
   }, [open]);
 
   return (
-    <div className="min-h-full bg-background">
+    <div className="min-h-full bg-background pb-11">
       {!hideSidebar ? (
         <aside className="group/sidebar fixed inset-y-0 left-0 z-40 hidden w-16 overflow-hidden border-r border-navy-deep transition-[width] duration-200 ease-out hover:w-72 hover:shadow-xl focus-within:w-72 lg:block">
           <AdminSidebar items={sidebarItems} user={user} variant="rail" />
@@ -127,8 +128,16 @@ export function AdminShell({
             </div>
           </div>
         </header>
-        <main className="px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main
+          className={
+            hideSidebar ? "px-4 py-3 sm:px-5 lg:px-6" : "px-4 py-6 sm:px-6 lg:px-8"
+          }
+        >
+          {children}
+        </main>
       </div>
+
+      <AppFooter className={hideSidebar ? "sm:px-5 lg:px-6" : "lg:pl-24 lg:pr-8"} />
     </div>
   );
 }

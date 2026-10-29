@@ -50,7 +50,7 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
 
   return (
     <div className="mx-auto max-w-7xl">
-      <div className="mb-6 flex justify-end">
+      <div className="mb-3 flex justify-end">
         <DashboardFiltersButton
           from={range.from}
           to={range.to}
@@ -60,7 +60,7 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
 
       <section
         aria-label="Performance gauges"
-        className="mb-8 grid gap-4 sm:grid-cols-3"
+        className="mb-4 grid gap-3 sm:grid-cols-3"
       >
         <SpeedometerGauge
           label="Terminals online"
@@ -97,7 +97,7 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
         />
       </section>
 
-      <section aria-label="Breakdown charts" className="mb-8 grid gap-4 md:grid-cols-2">
+      <section aria-label="Breakdown charts" className="mb-4 grid gap-3 md:grid-cols-2">
         <MembersByGenderChart
           membersByGender={data.membersByGender}
           href={membersHref}

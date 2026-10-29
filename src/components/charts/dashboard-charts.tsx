@@ -220,7 +220,7 @@ function LegendPieChart({
   }
 
   return (
-    <div className="flex h-[220px] items-center gap-4">
+    <div className="flex h-[160px] items-center gap-3">
       <div className="h-full min-w-0 flex-1">
         {allHidden ? (
           <div className="flex h-full items-center justify-center text-sm text-gray-500">{emptyLabel}</div>
@@ -231,8 +231,8 @@ function LegendPieChart({
                 data={chartData}
                 dataKey="value"
                 nameKey="name"
-                innerRadius={50}
-                outerRadius={80}
+                innerRadius={36}
+                outerRadius={58}
                 isAnimationActive
                 animationBegin={animationBegin}
                 animationDuration={900}
@@ -301,14 +301,14 @@ function ChartCard({
   style?: React.CSSProperties;
 }) {
   const cardClassName = cn(
-    "chart-rise rounded-2xl border border-border bg-card p-5",
+    "chart-rise rounded-md border border-border bg-card p-3",
     href && "block transition-colors hover:border-navy/25 hover:bg-background/60",
     className,
   );
   const body = (
     <>
       <p className="text-sm font-semibold text-navy">{title}</p>
-      <div className="mt-4">{children}</div>
+      <div className="mt-2">{children}</div>
     </>
   );
 
@@ -329,7 +329,7 @@ function ChartCard({
 
 function EmptyChart({ message = "No giving in this range" }: { message?: string }) {
   return (
-    <div className="flex h-40 items-center justify-center rounded-xl bg-background text-sm text-gray-500">
+    <div className="flex h-32 items-center justify-center rounded-md bg-background text-sm text-gray-500">
       {message}
     </div>
   );
