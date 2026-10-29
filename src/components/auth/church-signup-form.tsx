@@ -141,7 +141,11 @@ export function ChurchSignupForm({ rootDomain, referralCode = "" }: ChurchSignup
         label="Referral code"
         htmlFor="referral_code"
         error={errors.referral_code?.message}
-        hint={referralCode ? "This signup was referred by another church." : "Optional. Enter a referring church address if you have one."}
+        hint={
+          referralCode
+            ? "This signup was referred by a person or church."
+            : "Optional. Enter a personal or church referral code if you have one."
+        }
       >
         <input
           id="referral_code"

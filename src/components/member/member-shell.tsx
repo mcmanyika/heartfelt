@@ -7,12 +7,14 @@ import {
   CalendarDays,
   CircleDollarSign,
   ClipboardList,
+  Handshake,
   LayoutDashboard,
   Megaphone,
   UserRound,
   UsersRound,
 } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { AppFooter } from "@/components/ui/app-footer";
 import { ChurchLogo } from "@/components/ui/church-logo";
 import {
   isMemberNavActive,
@@ -27,6 +29,7 @@ const ICONS = {
   cellGroup: UsersRound,
   departments: Briefcase,
   requisitions: ClipboardList,
+  referrals: Handshake,
   giving: CircleDollarSign,
   events: CalendarDays,
   announcements: Megaphone,
@@ -51,7 +54,7 @@ export function MemberShell({
   const mobileItems = navItems.slice(0, 4);
 
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-background">
+    <div className="flex min-h-full flex-1 flex-col bg-background pb-11 max-sm:pb-[6.75rem]">
       <header className="sticky top-0 z-20 bg-navy text-white">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
@@ -95,9 +98,11 @@ export function MemberShell({
         </nav>
       </header>
 
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-6 pb-24 sm:px-6 sm:pb-10">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-6 sm:px-6">
         {children}
       </main>
+
+      <AppFooter className="max-sm:bottom-14" />
 
       <nav
         aria-label="Member"

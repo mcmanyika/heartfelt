@@ -17,10 +17,7 @@ export default async function MemberProfilePage() {
 
   return (
     <>
-      <PageHeader
-        title="Profile"
-        description="Update your personal details and departments. Campus, membership number, and status stay with your campus office."
-      />
+      <PageHeader title="Profile" />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">

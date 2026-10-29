@@ -7,6 +7,7 @@ export type MemberNavItem = {
     | "cellGroup"
     | "departments"
     | "requisitions"
+    | "referrals"
     | "giving"
     | "events"
     | "announcements";
@@ -21,6 +22,7 @@ export const MEMBER_NAV_ITEMS: readonly MemberNavItem[] = [
   { href: "/member/giving", label: "Giving", icon: "giving" },
   { href: "/member/events", label: "Events", icon: "events" },
   { href: "/member/announcements", label: "Announcements", icon: "announcements" },
+  { href: "/member/referrals", label: "Referrals", icon: "referrals" },
 ] as const;
 
 export function memberNavItemsForAccess(options: { canAccessRequisitions: boolean }) {

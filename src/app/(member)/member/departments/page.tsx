@@ -16,7 +16,7 @@ export default async function MemberDepartmentsPage() {
 
   return (
     <>
-      <PageHeader title="Departments" description="Campus teams · leaders confirm membership" />
+      <PageHeader title="Departments" />
 
       {led.requests.length > 0 ? (
         <div className="mb-6">

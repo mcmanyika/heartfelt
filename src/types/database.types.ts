@@ -1071,7 +1071,8 @@ export type Database = {
       affiliate_commissions: {
         Row: {
           id: string;
-          referrer_organization_id: string;
+          referrer_organization_id: string | null;
+          referrer_profile_id: string | null;
           referred_organization_id: string;
           package_payment_id: string;
           setup_cents: number;
@@ -1086,7 +1087,8 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          referrer_organization_id: string;
+          referrer_organization_id?: string | null;
+          referrer_profile_id?: string | null;
           referred_organization_id: string;
           package_payment_id: string;
           setup_cents: number;
@@ -1101,7 +1103,8 @@ export type Database = {
         };
         Update: {
           id?: string;
-          referrer_organization_id?: string;
+          referrer_organization_id?: string | null;
+          referrer_profile_id?: string | null;
           referred_organization_id?: string;
           package_payment_id?: string;
           setup_cents?: number;
@@ -1123,6 +1126,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "affiliate_commissions_referrer_profile_id_fkey";
+            columns: ["referrer_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "affiliate_commissions_referred_organization_id_fkey";
             columns: ["referred_organization_id"];
             isOneToOne: false;
@@ -1132,7 +1142,7 @@ export type Database = {
           {
             foreignKeyName: "affiliate_commissions_package_payment_id_fkey";
             columns: ["package_payment_id"];
-            isOneToOne: true;
+            isOneToOne: false;
             referencedRelation: "package_payments";
             referencedColumns: ["id"];
           },
@@ -1186,18 +1196,21 @@ export type Database = {
         Row: {
           referred_organization_id: string;
           referrer_organization_id: string;
+          referrer_profile_id: string | null;
           referral_code: string;
           created_at: string;
         };
         Insert: {
           referred_organization_id: string;
           referrer_organization_id: string;
+          referrer_profile_id?: string | null;
           referral_code: string;
           created_at?: string;
         };
         Update: {
           referred_organization_id?: string;
           referrer_organization_id?: string;
+          referrer_profile_id?: string | null;
           referral_code?: string;
           created_at?: string;
         };
@@ -1214,6 +1227,13 @@ export type Database = {
             columns: ["referrer_organization_id"];
             isOneToOne: false;
             referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "organization_referrals_referrer_profile_id_fkey";
+            columns: ["referrer_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];
@@ -1469,6 +1489,7 @@ export type Database = {
           location_id: string | null;
           organization_id: string;
           phone: string | null;
+          referral_code: string;
           status: Database["public"]["Enums"]["profile_status"];
           updated_at: string;
         };
@@ -1481,6 +1502,7 @@ export type Database = {
           location_id?: string | null;
           organization_id: string;
           phone?: string | null;
+          referral_code?: string;
           status?: Database["public"]["Enums"]["profile_status"];
           updated_at?: string;
         };
@@ -1493,6 +1515,7 @@ export type Database = {
           location_id?: string | null;
           organization_id?: string;
           phone?: string | null;
+          referral_code?: string;
           status?: Database["public"]["Enums"]["profile_status"];
           updated_at?: string;
         };
@@ -1719,27 +1742,27 @@ export type Database = {
       event_registration_status: "REGISTERED" | "ATTENDED" | "CANCELLED" | "PENDING_PAYMENT";
       financial_requisition_status: "SUBMITTED" | "APPROVED" | "REJECTED" | "CANCELLED";
       family_relationship:
-        | "SPOUSE"
-        | "PARENT"
-        | "CHILD"
-        | "SIBLING"
-        | "GUARDIAN"
-        | "DEPENDENT"
-        | "OTHER";
+      | "SPOUSE"
+      | "PARENT"
+      | "CHILD"
+      | "SIBLING"
+      | "GUARDIAN"
+      | "DEPENDENT"
+      | "OTHER";
       location_status: "ACTIVE" | "INACTIVE";
       membership_status:
-        | "VISITOR"
-        | "NEW_CONVERT"
-        | "ACTIVE_MEMBER"
-        | "INACTIVE_MEMBER"
-        | "TRANSFERRED";
+      | "VISITOR"
+      | "NEW_CONVERT"
+      | "ACTIVE_MEMBER"
+      | "INACTIVE_MEMBER"
+      | "TRANSFERRED";
       payment_method:
-        | "CASH"
-        | "ECOCASH"
-        | "ONEMONEY"
-        | "CARD"
-        | "BANK_TRANSFER"
-        | "TERMINAL";
+      | "CASH"
+      | "ECOCASH"
+      | "ONEMONEY"
+      | "CARD"
+      | "BANK_TRANSFER"
+      | "TERMINAL";
       profile_status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
       terminal_status: "ONLINE" | "OFFLINE" | "MAINTENANCE" | "DISABLED";
       transaction_status: "PENDING" | "SUCCESS" | "FAILED" | "REFUNDED";

@@ -1,5 +1,8 @@
-/** 20% of setup fees, in basis points. */
+/** Full setup-fee commission when an org slug/code is used (basis points). */
 export const AFFILIATE_COMMISSION_RATE_BPS = 2000;
+
+/** Split share when a personal profile code is used (10% each to person + church). */
+export const AFFILIATE_SPLIT_RATE_BPS = 1000;
 
 export const AFFILIATE_REFERRAL_COOKIE = "hf_referral";
 

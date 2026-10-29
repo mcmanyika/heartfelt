@@ -24,10 +24,7 @@ export default async function MemberCellGroupPage() {
 
   return (
     <>
-      <PageHeader
-        title="Cell group"
-        description="Campus home groups · leaders confirm membership"
-      />
+      <PageHeader title="Cell group" />
 
       {led.requests.length > 0 ? (
         <div className="mb-6">
