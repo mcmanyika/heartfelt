@@ -2,7 +2,12 @@ export { getCurrentUser, loadCurrentUser } from "@/lib/auth/get-current-user";
 export { requireUser } from "@/lib/auth/require-user";
 export { requireRole } from "@/lib/auth/require-role";
 export { requireLocationAccess } from "@/lib/auth/require-location-access";
-export { loginAction, logoutAction } from "@/lib/auth/actions";
+export {
+  loginAction,
+  logoutAction,
+  requestMobileLoginOtpAction,
+  verifyMobileLoginOtpAction,
+} from "@/lib/auth/actions";
 export {
   canAccessAdmin,
   canAccessMemberPortal,

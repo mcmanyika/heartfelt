@@ -69,12 +69,19 @@ export function GivingTrendChart({
 export function MembersByGenderChart({
   membersByGender,
   href,
+  animationDelayMs = 0,
 }: {
   membersByGender: Array<{ name: string; value: number }>;
   href?: string;
+  animationDelayMs?: number;
 }) {
   return (
-    <ChartCard title="Members by gender" className="h-full" href={href}>
+    <ChartCard
+      title="Members by gender"
+      className="h-full"
+      href={href}
+      style={{ animationDelay: `${animationDelayMs}ms` }}
+    >
       {membersByGender.length === 0 ? (
         <EmptyChart message="No members in this scope" />
       ) : (
@@ -82,6 +89,37 @@ export function MembersByGenderChart({
           data={membersByGender}
           emptyLabel="All genders hidden"
           interactive={!href}
+          animationBegin={animationDelayMs}
+        />
+      )}
+    </ChartCard>
+  );
+}
+
+export function GivingByMethodChart({
+  byMethod,
+  href,
+  animationDelayMs = 0,
+}: {
+  byMethod: Array<{ name: string; value: number }>;
+  href?: string;
+  animationDelayMs?: number;
+}) {
+  return (
+    <ChartCard
+      title="Giving by method"
+      className="h-full"
+      href={href}
+      style={{ animationDelay: `${animationDelayMs}ms` }}
+    >
+      {byMethod.length === 0 ? (
+        <EmptyChart message="No giving in this range" />
+      ) : (
+        <LegendPieChart
+          data={byMethod}
+          emptyLabel="All methods hidden"
+          interactive={!href}
+          animationBegin={animationDelayMs}
         />
       )}
     </ChartCard>
@@ -155,10 +193,12 @@ function LegendPieChart({
   data,
   emptyLabel,
   interactive = true,
+  animationBegin = 120,
 }: {
   data: Array<{ name: string; value: number }>;
   emptyLabel: string;
   interactive?: boolean;
+  animationBegin?: number;
 }) {
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const chartData = data.map((entry) => ({
@@ -193,7 +233,10 @@ function LegendPieChart({
                 nameKey="name"
                 innerRadius={50}
                 outerRadius={80}
-                isAnimationActive={false}
+                isAnimationActive
+                animationBegin={animationBegin}
+                animationDuration={900}
+                animationEasing="ease-out"
               >
                 {chartData.map((entry, index) => (
                   <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
@@ -249,14 +292,16 @@ function ChartCard({
   children,
   className,
   href,
+  style,
 }: {
   title: string;
   children: React.ReactNode;
   className?: string;
   href?: string;
+  style?: React.CSSProperties;
 }) {
   const cardClassName = cn(
-    "rounded-2xl border border-border bg-card p-5",
+    "chart-rise rounded-2xl border border-border bg-card p-5",
     href && "block transition-colors hover:border-navy/25 hover:bg-background/60",
     className,
   );
@@ -269,13 +314,17 @@ function ChartCard({
 
   if (href) {
     return (
-      <Link href={href} className={cardClassName} aria-label={`View ${title}`}>
+      <Link href={href} className={cardClassName} style={style} aria-label={`View ${title}`}>
         {body}
       </Link>
     );
   }
 
-  return <div className={cardClassName}>{body}</div>;
+  return (
+    <div className={cardClassName} style={style}>
+      {body}
+    </div>
+  );
 }
 
 function EmptyChart({ message = "No giving in this range" }: { message?: string }) {

@@ -39,6 +39,27 @@ body {
   }
 }
 
+@keyframes chart-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chart-rise {
+  animation: chart-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-rise {
+    animation: none;
+  }
+}
+
 .terminal-shell {
   min-height: 100%;
   min-height: 100dvh;

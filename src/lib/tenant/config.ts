@@ -1,4 +1,4 @@
-export const PRODUCT_NAME = process.env.NEXT_PUBLIC_PRODUCT_NAME?.trim() || "Heartfelt Connect";
+export const PRODUCT_NAME = process.env.NEXT_PUBLIC_PRODUCT_NAME?.trim() || "ProFaith";
 
 export const TENANT_HEADER = "x-tenant-slug";
 export const TENANT_COOKIE = "hf_tenant";

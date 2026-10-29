@@ -34,6 +34,10 @@ export type AdminNavSection = {
   items: AdminNavItem[];
 };
 
+export function isAdminHeaderNavItem(item: AdminNavItem) {
+  return item.section === "Administration";
+}
+
 export function groupAdminNavItems(items: readonly AdminNavItem[]): AdminNavSection[] {
   const sections: AdminNavSection[] = [];
 
@@ -141,6 +145,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     label: "Reports",
     icon: "reports",
     roles: STAFF_ROLES,
+    section: "Engagement",
   },
   {
     href: "/admin/locations",

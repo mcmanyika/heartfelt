@@ -3,27 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import {
-  BarChart3,
-  Briefcase,
-  Building2,
-  CalendarDays,
-  ChevronDown,
-  CircleDollarSign,
-  ClipboardList,
-  CreditCard,
-  LayoutDashboard,
-  Link2,
-  Megaphone,
-  MonitorSmartphone,
-  ScrollText,
-  Settings,
-  UserCog,
-  UserPlus,
-  Users,
-  UsersRound,
-  Wallet,
-} from "lucide-react";
+import { ChevronDown, Megaphone, Users, Wallet } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { ChurchLogo } from "@/components/ui/church-logo";
 import {
@@ -32,33 +12,13 @@ import {
   type AdminNavItem,
   type AdminNavSection,
 } from "@/lib/auth/admin-nav";
+import { ADMIN_NAV_ICONS } from "@/lib/auth/admin-nav-icons";
 import { cn } from "@/lib/utils/cn";
-
-const ICONS = {
-  dashboard: LayoutDashboard,
-  locations: Building2,
-  members: Users,
-  cellGroups: UsersRound,
-  departments: Briefcase,
-  registrations: UserPlus,
-  giving: CircleDollarSign,
-  requisitions: ClipboardList,
-  terminals: MonitorSmartphone,
-  paymentButtons: Link2,
-  events: CalendarDays,
-  announcements: Megaphone,
-  reports: BarChart3,
-  audit: ScrollText,
-  users: UserCog,
-  settings: Settings,
-  subscriptions: CreditCard,
-};
 
 const SECTION_ICONS: Record<string, typeof Wallet> = {
   People: Users,
   Financials: Wallet,
   Engagement: Megaphone,
-  Administration: Settings,
 };
 
 export type AdminSidebarUser = {
@@ -79,14 +39,38 @@ type AdminSidebarProps = {
 export function AdminSidebar({ items, user, variant = "expanded" }: AdminSidebarProps) {
   const pathname = usePathname();
   const rail = variant === "rail";
+  const [railExpanded, setRailExpanded] = useState(false);
   const sections = groupAdminNavItems(items);
   const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
   const hoverLabel = rail
     ? "hidden whitespace-nowrap group-hover/sidebar:inline group-focus-within/sidebar:inline"
     : "whitespace-nowrap";
+  const menusEnabled = !rail || railExpanded;
 
   return (
-    <div className="flex h-full flex-col bg-navy text-white">
+    <div
+      className="flex h-full flex-col bg-navy text-white"
+      onMouseEnter={() => {
+        if (rail) {
+          setRailExpanded(true);
+        }
+      }}
+      onMouseLeave={() => {
+        if (rail) {
+          setRailExpanded(false);
+        }
+      }}
+      onFocusCapture={() => {
+        if (rail) {
+          setRailExpanded(true);
+        }
+      }}
+      onBlurCapture={(event) => {
+        if (rail && !event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setRailExpanded(false);
+        }
+      }}
+    >
       {user.organizationLogoUrl ? (
         <div className="border-b border-white/10 px-3 py-4">
           <ChurchLogo
@@ -108,6 +92,7 @@ export function AdminSidebar({ items, user, variant = "expanded" }: AdminSidebar
                   pathname={pathname}
                   hoverLabel={hoverLabel}
                   rail={rail}
+                  menusEnabled={menusEnabled}
                 />
               </li>
             ) : (
@@ -150,29 +135,40 @@ function NavDropdown({
   pathname,
   hoverLabel,
   rail,
+  menusEnabled,
 }: {
   section: AdminNavSection & { label: string };
   pathname: string;
   hoverLabel: string;
   rail: boolean;
+  menusEnabled: boolean;
 }) {
   const childActive = section.items.some((item) => isAdminNavActive(item, pathname));
-  const [open, setOpen] = useState(childActive);
+  const [open, setOpen] = useState(false);
   const SectionIcon = SECTION_ICONS[section.label] ?? Wallet;
 
   useEffect(() => {
+    if (!menusEnabled) {
+      setOpen(false);
+      return;
+    }
     if (childActive) {
       setOpen(true);
     }
-  }, [childActive]);
+  }, [menusEnabled, childActive]);
 
   return (
     <div>
       <button
         type="button"
-        aria-expanded={open}
+        aria-expanded={open && menusEnabled}
         aria-controls={`nav-section-${section.label}`}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => {
+          if (!menusEnabled) {
+            return;
+          }
+          setOpen((current) => !current);
+        }}
         className={cn(
           "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition",
           childActive ? "text-white" : "text-white/80 hover:bg-white/10 hover:text-white",
@@ -183,13 +179,13 @@ function NavDropdown({
         <ChevronDown
           className={cn(
             "size-4 shrink-0 text-white/50 transition-transform",
-            open && "rotate-180",
+            open && menusEnabled && "rotate-180",
             rail && "hidden group-hover/sidebar:inline group-focus-within/sidebar:inline",
           )}
           aria-hidden="true"
         />
       </button>
-      {open ? (
+      {open && menusEnabled ? (
         <ul id={`nav-section-${section.label}`} className="mt-1 space-y-1 border-l border-white/10 ml-5 pl-2">
           {section.items.map((item) => (
             <li key={item.href}>
@@ -213,7 +209,7 @@ function NavItemLink({
   hoverLabel: string;
   nested?: boolean;
 }) {
-  const Icon = ICONS[item.icon];
+  const Icon = ADMIN_NAV_ICONS[item.icon];
   const active = isAdminNavActive(item, pathname);
 
   return (

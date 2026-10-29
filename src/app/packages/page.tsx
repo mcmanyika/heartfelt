@@ -142,7 +142,7 @@ export default async function PackagesPage() {
     <main className="mx-auto w-full max-w-6xl px-6 py-12">
       <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-medium tracking-wide text-maroon uppercase">{PRODUCT_NAME}</p>
+          <p className="text-sm font-semibold tracking-tight text-maroon">{PRODUCT_NAME}</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-navy sm:text-4xl">
             Packages and cost breakdown
           </h1>

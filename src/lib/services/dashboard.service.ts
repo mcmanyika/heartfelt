@@ -123,9 +123,9 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
   if (recentGiving.error) logServerError("dashboard.recentGiving", recentGiving.error);
 
   const summary = summarizeGiving(scoped.rows);
-  const activeLocations = ((locations.data ?? []) as Array<{ status: string }>).filter(
-    (location) => location.status === "ACTIVE",
-  ).length;
+  const locationRows = (locations.data ?? []) as Array<{ status: string }>;
+  const activeLocations = locationRows.filter((location) => location.status === "ACTIVE").length;
+  const locationCount = locationRows.length;
   const onlineTerminals = ((terminals.data ?? []) as Array<{ status: string }>).filter(
     (terminal) => terminal.status === "ONLINE",
   ).length;
@@ -155,6 +155,7 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
     range,
     memberCount: members.count ?? 0,
     activeLocations,
+    locationCount,
     onlineTerminals,
     terminalCount: ((terminals.data ?? []) as unknown[]).length,
     summary,

@@ -56,7 +56,7 @@ export default async function HomePage() {
   return (
     <main className="flex min-h-full flex-1 flex-col items-center justify-center px-6 py-16">
       <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-8 shadow-sm sm:p-10">
-        <p className="text-sm font-medium tracking-wide text-maroon uppercase">{PRODUCT_NAME}</p>
+        <p className="text-sm font-semibold tracking-tight text-maroon">{PRODUCT_NAME}</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-navy sm:text-4xl">
           Church management for every campus
         </h1>

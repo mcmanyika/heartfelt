@@ -18,7 +18,7 @@ export default async function StartChurchPage() {
 
   return (
     <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
-      <p className="text-sm font-medium tracking-wide text-maroon uppercase">{PRODUCT_NAME}</p>
+      <p className="text-sm font-semibold tracking-tight text-maroon">{PRODUCT_NAME}</p>
       <h1 className="mt-3 text-2xl font-semibold tracking-tight text-navy">Start your church</h1>
       <p className="mt-2 text-sm leading-6 text-gray-600">
         Create an organization, first campus, and administrator account. Members register later on your church address.
