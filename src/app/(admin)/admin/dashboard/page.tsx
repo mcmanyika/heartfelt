@@ -15,7 +15,7 @@ import {
   getDashboardData,
   parseDashboardRange,
 } from "@/lib/services/dashboard.service";
-import { formatDate, paymentMethodLabel } from "@/lib/utils/format";
+import { paymentMethodLabel } from "@/lib/utils/format";
 
 type DashboardPageProps = {
   searchParams: Promise<{ from?: string; to?: string }>;
@@ -47,14 +47,10 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
   const digitalGifts = Math.max(0, giftsInRange - cashGifts);
   const membersHref =
     current.isSuperAdmin || current.isLocationAdmin ? "/admin/members" : undefined;
-  const rangeLabel = `${formatDate(range.from)} – ${formatDate(range.to)}`;
 
   return (
     <div className="mx-auto max-w-7xl">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-gray-600">
-          Giving metrics for <span className="font-medium text-navy">{rangeLabel}</span>
-        </p>
+      <div className="mb-6 flex justify-end">
         <DashboardFiltersButton
           from={range.from}
           to={range.to}

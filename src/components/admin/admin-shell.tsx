@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { AdminHeaderNav } from "@/components/admin/admin-header-nav";
 import { AdminSidebar, type AdminSidebarUser } from "@/components/admin/admin-sidebar";
-import { LogoutButton } from "@/components/auth/logout-button";
 import {
   LocationSelector,
   type LocationOption,
@@ -118,14 +117,13 @@ export function AdminShell({
               )}
             </div>
             <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
-              <AdminHeaderNav items={headerItems} />
               <LocationSelector
                 locked={locationLocked}
                 selectedId={selectedLocationId}
                 locations={locations}
                 selectedLabel={selectedLocationLabel}
               />
-              {hideSidebar ? <LogoutButton variant="light" /> : null}
+              <AdminHeaderNav items={headerItems} />
             </div>
           </div>
         </header>

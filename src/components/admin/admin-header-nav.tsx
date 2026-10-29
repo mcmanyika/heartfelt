@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { ChevronDown, Settings } from "lucide-react";
+import { ChevronDown, LogOut, Settings } from "lucide-react";
+import { logoutAction } from "@/lib/auth/actions";
 import { isAdminNavActive, type AdminNavItem } from "@/lib/auth/admin-nav";
 import { ADMIN_NAV_ICONS } from "@/lib/auth/admin-nav-icons";
 import { cn } from "@/lib/utils/cn";
@@ -47,10 +48,6 @@ export function AdminHeaderNav({ items }: AdminHeaderNavProps) {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [open]);
-
-  if (items.length === 0) {
-    return null;
-  }
 
   return (
     <div ref={rootRef} className="relative">
@@ -103,6 +100,17 @@ export function AdminHeaderNav({ items }: AdminHeaderNavProps) {
               </Link>
             );
           })}
+          {items.length > 0 ? <div className="my-1 border-t border-border" /> : null}
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              role="menuitem"
+              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-navy/80 transition hover:bg-background hover:text-navy"
+            >
+              <LogOut className="size-4 shrink-0 text-navy/60" aria-hidden="true" />
+              Sign out
+            </button>
+          </form>
         </div>
       ) : null}
     </div>
