@@ -26,10 +26,7 @@ export default async function MemberGivingPage({ searchParams }: MemberGivingPag
 
   return (
     <>
-      <PageHeader
-        title="Giving"
-        description="Your own giving history. Other members' records are never shown here."
-      />
+      <PageHeader title="Giving" />
 
       <form className="mb-5 grid gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm md:grid-cols-3">
         <SearchInput defaultValue={params.q} placeholder="Search reference" />

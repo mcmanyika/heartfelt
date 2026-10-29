@@ -50,12 +50,7 @@ export default async function MemberDashboardPage({ searchParams }: MemberDashbo
 
   return (
     <>
-      <PageHeader
-        title="Dashboard"
-        description={
-          [location?.name, member?.membership_number].filter(Boolean).join(" · ") || undefined
-        }
-      />
+      <PageHeader title="Dashboard" />
 
       <section aria-label="Summary" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Campus" value={location?.code ?? "—"} />

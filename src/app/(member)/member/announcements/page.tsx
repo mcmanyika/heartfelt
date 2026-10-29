@@ -24,10 +24,7 @@ export default async function MemberAnnouncementsPage({ searchParams }: MemberAn
 
   return (
     <>
-      <PageHeader
-        title="Announcements"
-        description="Current notices from Head Office and your campus."
-      />
+      <PageHeader title="Announcements" />
       <form className="mb-5 grid gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm md:grid-cols-3">
         <SearchInput defaultValue={params.q} placeholder="Search title or message" />
         <div>

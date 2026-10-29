@@ -48,10 +48,7 @@ export default async function MemberEventsPage({ searchParams }: MemberEventsPag
 
   return (
     <>
-      <PageHeader
-        title="Events"
-        description="Organization-wide gatherings and events at your campus."
-      />
+      <PageHeader title="Events" />
       {notice ? (
         <p className="mb-4 rounded-xl border border-border bg-card px-4 py-3 text-sm text-navy">{notice}</p>
       ) : null}
