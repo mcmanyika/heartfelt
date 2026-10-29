@@ -43,10 +43,12 @@ export function AdminNavTiles({ items }: AdminNavTilesProps) {
                       className="absolute top-3.5 right-3.5 size-4 text-gray-300 transition duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-maroon"
                       aria-hidden="true"
                     />
-                    <span className="relative flex size-11 items-center justify-center rounded-2xl bg-navy text-white shadow-sm transition duration-200 group-hover:bg-maroon">
-                      <Icon className="size-5" aria-hidden="true" />
-                    </span>
-                    <span className="relative mt-4 text-[0.95rem] font-semibold leading-snug tracking-tight">
+                    <Icon
+                      className="relative size-9 text-navy transition duration-200 group-hover:text-maroon"
+                      aria-hidden="true"
+                      strokeWidth={1.75}
+                    />
+                    <span className="relative mt-3 text-[0.95rem] font-semibold leading-snug tracking-tight">
                       {item.label}
                     </span>
                   </Link>
