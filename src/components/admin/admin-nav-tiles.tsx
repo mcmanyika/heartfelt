@@ -22,13 +22,13 @@ export function AdminNavTiles({ items }: AdminNavTilesProps) {
               <div className="mb-1 h-px flex-1 bg-gradient-to-r from-border to-transparent" />
             </div>
           ) : null}
-          <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
+          <ul className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 snap-x snap-mandatory sm:gap-4 [scrollbar-width:thin]">
             {section.items.map((item, index) => {
               const Icon = ADMIN_NAV_ICONS[item.icon];
               return (
                 <li
                   key={item.href}
-                  className="chart-rise"
+                  className="chart-rise min-w-[calc(50%-0.375rem)] flex-1 snap-start sm:min-w-[calc(25%-0.75rem)]"
                   style={{ animationDelay: `${380 + index * 45}ms` }}
                 >
                   <Link
