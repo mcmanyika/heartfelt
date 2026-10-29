@@ -17,10 +17,12 @@ export type DashboardRange = {
 };
 
 export function defaultDashboardRange(): DashboardRange {
-  const year = new Date().getUTCFullYear();
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
   return {
-    from: `${year}-01-01`,
-    to: new Date().toISOString().slice(0, 10),
+    from: `${year}-${month}-01`,
+    to: now.toISOString().slice(0, 10),
   };
 }
 

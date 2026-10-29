@@ -1,4 +1,5 @@
 import { AdminNavTiles } from "@/components/admin/admin-nav-tiles";
+import { DashboardFiltersButton } from "@/components/admin/dashboard-filters-button";
 import {
   GivingByMethodChart,
   MembersByGenderChart,
@@ -12,12 +13,21 @@ import { STAFF_ROLES } from "@/lib/auth/types";
 import {
   defaultDashboardRange,
   getDashboardData,
+  parseDashboardRange,
 } from "@/lib/services/dashboard.service";
-import { paymentMethodLabel } from "@/lib/utils/format";
+import { formatDate, paymentMethodLabel } from "@/lib/utils/format";
 
-export default async function AdminDashboardPage() {
+type DashboardPageProps = {
+  searchParams: Promise<{ from?: string; to?: string }>;
+};
+
+export default async function AdminDashboardPage({ searchParams }: DashboardPageProps) {
   const current = await requireRole(STAFF_ROLES);
-  const data = await getDashboardData(defaultDashboardRange());
+  const params = await searchParams;
+  const defaults = defaultDashboardRange();
+  const range = parseDashboardRange(params.from, params.to);
+  const isDefaultRange = range.from === defaults.from && range.to === defaults.to;
+  const data = await getDashboardData(range);
   const items = ADMIN_NAV_ITEMS.filter((item) => {
     if (
       item.href === "/admin/dashboard" ||
@@ -32,14 +42,26 @@ export default async function AdminDashboardPage() {
     return hasAnyRole(current, item.roles);
   });
 
-  const giftsYtd = data.summary.successfulCount;
+  const giftsInRange = data.summary.successfulCount;
   const cashGifts = data.summary.byMethod.CASH ?? 0;
-  const digitalGifts = Math.max(0, giftsYtd - cashGifts);
+  const digitalGifts = Math.max(0, giftsInRange - cashGifts);
   const membersHref =
     current.isSuperAdmin || current.isLocationAdmin ? "/admin/members" : undefined;
+  const rangeLabel = `${formatDate(range.from)} – ${formatDate(range.to)}`;
 
   return (
     <div className="mx-auto max-w-7xl">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-gray-600">
+          Giving metrics for <span className="font-medium text-navy">{rangeLabel}</span>
+        </p>
+        <DashboardFiltersButton
+          from={range.from}
+          to={range.to}
+          isDefaultRange={isDefaultRange}
+        />
+      </div>
+
       <section
         aria-label="Performance gauges"
         className="mb-8 grid gap-4 sm:grid-cols-3"
@@ -58,12 +80,12 @@ export default async function AdminDashboardPage() {
         <SpeedometerGauge
           label="Digital giving"
           value={digitalGifts}
-          max={giftsYtd}
+          max={giftsInRange}
           animationDelayMs={90}
           detail={
-            giftsYtd === 0
-              ? "No gifts recorded this year"
-              : `${digitalGifts} of ${giftsYtd} non-cash`
+            giftsInRange === 0
+              ? "No gifts in this range"
+              : `${digitalGifts} of ${giftsInRange} non-cash`
           }
         />
         <SpeedometerGauge
