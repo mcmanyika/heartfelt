@@ -137,7 +137,7 @@ export function AdminShell({
         </main>
       </div>
 
-      <AppFooter className={hideSidebar ? "sm:px-5 lg:px-6" : "lg:pl-24 lg:pr-8"} />
+      <AppFooter />
     </div>
   );
 }

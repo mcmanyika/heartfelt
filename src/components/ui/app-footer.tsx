@@ -13,7 +13,7 @@ export function AppFooter({ className }: AppFooterProps) {
         className,
       )}
     >
-      <p className="text-xs text-gray-500">
+      <p className="text-center text-xs text-gray-500">
         © {new Date().getFullYear()}{" "}
         <span className="font-medium text-navy">{PRODUCT_NAME}</span>
       </p>
