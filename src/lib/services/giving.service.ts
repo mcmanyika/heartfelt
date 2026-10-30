@@ -673,9 +673,14 @@ export function summarizeGiving(rows: Array<Record<string, unknown>>) {
   }
 
   const byMethod: Record<string, number> = {};
+  const byMethodTotals: Record<string, Record<string, number>> = {};
   for (const row of successful) {
     const method = String(row.payment_method);
+    const currency = String(row.currency);
     byMethod[method] = (byMethod[method] ?? 0) + 1;
+    byMethodTotals[method] = byMethodTotals[method] ?? {};
+    byMethodTotals[method][currency] =
+      (byMethodTotals[method][currency] ?? 0) + Number(row.amount);
   }
 
   const byLocation: Record<string, { name: string; code: string; count: number; totals: Record<string, number> }> =
@@ -702,6 +707,7 @@ export function summarizeGiving(rows: Array<Record<string, unknown>>) {
     byMonth,
     byCategory: Object.values(byCategory).sort((a, b) => b.count - a.count),
     byMethod,
+    byMethodTotals,
     byLocation: Object.values(byLocation).sort((a, b) => a.name.localeCompare(b.name)),
   };
 }

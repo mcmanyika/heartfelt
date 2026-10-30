@@ -47,6 +47,17 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
   const digitalGifts = Math.max(0, giftsInRange - cashGifts);
   const membersHref =
     current.isSuperAdmin || current.isLocationAdmin ? "/admin/members" : undefined;
+  const primaryCurrency =
+    data.summary.totals.slice().sort((a, b) => b.amount - a.amount)[0]?.currency ?? null;
+  const givingByMethod = primaryCurrency
+    ? Object.entries(data.summary.byMethodTotals)
+        .map(([name, totals]) => ({
+          name: paymentMethodLabel(name),
+          value: totals[primaryCurrency] ?? 0,
+        }))
+        .filter((entry) => entry.value > 0)
+        .sort((a, b) => b.value - a.value)
+    : [];
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -104,12 +115,10 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
           animationDelayMs={240}
         />
         <GivingByMethodChart
-          byMethod={Object.entries(data.summary.byMethod).map(([name, value]) => ({
-            name: paymentMethodLabel(name),
-            value,
-          }))}
+          byMethod={givingByMethod}
           href="/admin/transactions"
           animationDelayMs={320}
+          currency={primaryCurrency ?? undefined}
         />
       </section>
 

@@ -16,6 +16,7 @@ export function AppFooter({ className }: AppFooterProps) {
       <p className="text-center text-xs text-gray-500">
         © {new Date().getFullYear()}{" "}
         <span className="font-medium text-navy">{PRODUCT_NAME}</span>
+        . All Rights Reserved
       </p>
     </footer>
   );

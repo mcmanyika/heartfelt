@@ -147,7 +147,7 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
       row.gender === "Female" || row.gender === "Male" ? row.gender : "Unspecified";
     genderCounts.set(label, (genderCounts.get(label) ?? 0) + 1);
   }
-  const membersByGender = (["Female", "Male", "Unspecified"] as const)
+  const membersByGender = (["Male", "Female", "Unspecified"] as const)
     .map((name) => ({ name, value: genderCounts.get(name) ?? 0 }))
     .filter((entry) => entry.value > 0);
 
