@@ -118,8 +118,7 @@ export function GivingByMethodChart({
   const total = byMethod.reduce((sum, entry) => sum + entry.value, 0);
   const formatValue = (value: number) =>
     value.toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      maximumFractionDigits: 0,
     });
 
   return (
