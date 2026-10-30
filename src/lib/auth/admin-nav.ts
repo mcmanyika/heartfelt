@@ -1,7 +1,29 @@
 import type { AppRole } from "@/types";
 import { STAFF_ROLES } from "@/lib/auth/types";
 
+export type AdminNavKey =
+  | "dashboard"
+  | "members"
+  | "cellGroups"
+  | "departments"
+  | "registrations"
+  | "giving"
+  | "requisitions"
+  | "terminals"
+  | "paymentButtons"
+  | "subscriptions"
+  | "events"
+  | "announcements"
+  | "reports"
+  | "locations"
+  | "audit"
+  | "users"
+  | "settings"
+  | "affiliate"
+  | "menu";
+
 export type AdminNavItem = {
+  key: AdminNavKey;
   href: string;
   label: string;
   icon:
@@ -22,12 +44,15 @@ export type AdminNavItem = {
     | "settings"
     | "subscriptions"
     | "requisitions"
-    | "affiliate";
+    | "affiliate"
+    | "menu";
   roles: readonly AppRole[];
   /** Optional sidebar subheading; consecutive items with the same value are grouped. */
   section?: string;
   platformOnly?: boolean;
   matchPrefixes?: readonly string[];
+  /** Cannot be disabled per church. */
+  alwaysEnabled?: boolean;
 };
 
 export type AdminNavSection = {
@@ -57,12 +82,15 @@ export function groupAdminNavItems(items: readonly AdminNavItem[]): AdminNavSect
 
 export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
   {
+    key: "dashboard",
     href: "/admin/dashboard",
     label: "Dashboard",
     icon: "dashboard",
     roles: STAFF_ROLES,
+    alwaysEnabled: true,
   },
   {
+    key: "members",
     href: "/admin/members",
     label: "Members",
     icon: "members",
@@ -70,6 +98,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     section: "People",
   },
   {
+    key: "cellGroups",
     href: "/admin/cell-groups",
     label: "Cell groups",
     icon: "cellGroups",
@@ -77,6 +106,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     section: "People",
   },
   {
+    key: "departments",
     href: "/admin/departments",
     label: "Departments",
     icon: "departments",
@@ -84,6 +114,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     section: "People",
   },
   {
+    key: "registrations",
     href: "/admin/registrations",
     label: "Registrations",
     icon: "registrations",
@@ -91,6 +122,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     section: "People",
   },
   {
+    key: "giving",
     href: "/admin/transactions",
     label: "Giving & Transactions",
     icon: "giving",
@@ -99,6 +131,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     matchPrefixes: ["/admin/transactions", "/admin/giving"],
   },
   {
+    key: "requisitions",
     href: "/admin/requisitions",
     label: "Requisitions",
     icon: "requisitions",
@@ -106,6 +139,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     section: "Financials",
   },
   {
+    key: "terminals",
     href: "/admin/terminals",
     label: "Payment Terminals",
     icon: "terminals",
@@ -113,6 +147,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     section: "Financials",
   },
   {
+    key: "paymentButtons",
     href: "/admin/payment-buttons",
     label: "Payment buttons",
     icon: "paymentButtons",
@@ -120,6 +155,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     section: "Financials",
   },
   {
+    key: "subscriptions",
     href: "/admin/subscriptions",
     label: "Subscriptions",
     icon: "subscriptions",
@@ -128,6 +164,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     platformOnly: true,
   },
   {
+    key: "events",
     href: "/admin/events",
     label: "Events",
     icon: "events",
@@ -135,6 +172,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     section: "Engagement",
   },
   {
+    key: "announcements",
     href: "/admin/announcements",
     label: "Announcements",
     icon: "announcements",
@@ -142,6 +180,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     section: "Engagement",
   },
   {
+    key: "reports",
     href: "/admin/reports",
     label: "Reports",
     icon: "reports",
@@ -149,6 +188,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     section: "Engagement",
   },
   {
+    key: "locations",
     href: "/admin/locations",
     label: "Locations",
     icon: "locations",
@@ -156,6 +196,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     section: "Administration",
   },
   {
+    key: "audit",
     href: "/admin/audit",
     label: "Audit log",
     icon: "audit",
@@ -163,6 +204,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     section: "Administration",
   },
   {
+    key: "users",
     href: "/admin/users",
     label: "Users",
     icon: "users",
@@ -170,6 +212,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     section: "Administration",
   },
   {
+    key: "settings",
     href: "/admin/settings",
     label: "Settings",
     icon: "settings",
@@ -177,11 +220,22 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     section: "Administration",
   },
   {
+    key: "affiliate",
     href: "/admin/affiliate",
     label: "Affiliate",
     icon: "affiliate",
     roles: ["SUPER_ADMIN"],
     section: "Administration",
+  },
+  {
+    key: "menu",
+    href: "/admin/menu",
+    label: "Menu access",
+    icon: "menu",
+    roles: STAFF_ROLES,
+    section: "Administration",
+    platformOnly: true,
+    alwaysEnabled: true,
   },
 ] as const;
 
@@ -196,6 +250,19 @@ export function isAdminNavActive(item: AdminNavItem, pathname: string) {
     return pathname === prefix || pathname.startsWith(`${prefix}/`);
   });
 }
+
+export function navKeyFromPathname(pathname: string): AdminNavKey | null {
+  const match = ADMIN_NAV_ITEMS.find((item) => {
+    if (item.key === "dashboard") {
+      return pathname === "/admin/dashboard" || pathname === "/admin";
+    }
+    const prefixes = item.matchPrefixes ?? [item.href];
+    return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  });
+  return match?.key ?? null;
+}
+
+export const TOGGLEABLE_ADMIN_NAV_ITEMS = ADMIN_NAV_ITEMS.filter((item) => !item.alwaysEnabled);
 
 export const ADMIN_PAGE_ROLES = {
   dashboard: STAFF_ROLES,
@@ -215,4 +282,5 @@ export const ADMIN_PAGE_ROLES = {
   users: ["SUPER_ADMIN"] as const,
   settings: ["SUPER_ADMIN"] as const,
   affiliate: ["SUPER_ADMIN"] as const,
+  menu: STAFF_ROLES,
 };

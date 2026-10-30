@@ -64,6 +64,7 @@ export function proxy(request: NextRequest) {
 
   if (pathSlug) {
     url.pathname = stripTenantPath(url.pathname, pathSlug);
+    requestHeaders.set("x-pathname", url.pathname);
     const response = NextResponse.rewrite(url, {
       request: { headers: requestHeaders },
     });
@@ -76,6 +77,7 @@ export function proxy(request: NextRequest) {
     return applyTenantCookie(response, request, querySlug);
   }
 
+  requestHeaders.set("x-pathname", url.pathname);
   const response = NextResponse.next({
     request: {
       headers: requestHeaders,

@@ -15,6 +15,10 @@ import {
   getDashboardData,
   parseDashboardRange,
 } from "@/lib/services/dashboard.service";
+import {
+  filterNavItemsByAccess,
+  getDisabledNavKeys,
+} from "@/lib/services/nav-access.service";
 import { paymentMethodLabel } from "@/lib/utils/format";
 
 type DashboardPageProps = {
@@ -28,19 +32,25 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
   const range = parseDashboardRange(params.from, params.to);
   const isDefaultRange = range.from === defaults.from && range.to === defaults.to;
   const data = await getDashboardData(range);
-  const items = ADMIN_NAV_ITEMS.filter((item) => {
-    if (
-      item.href === "/admin/dashboard" ||
-      item.href === "/admin/subscriptions" ||
-      isAdminHeaderNavItem(item)
-    ) {
-      return false;
-    }
-    if (item.platformOnly && !isPlatformAdminEmail(current.email)) {
-      return false;
-    }
-    return hasAnyRole(current, item.roles);
-  });
+  const isPlatformAdmin = isPlatformAdminEmail(current.email);
+  const disabled = await getDisabledNavKeys(current.organizationId);
+  const items = filterNavItemsByAccess(
+    ADMIN_NAV_ITEMS.filter((item) => {
+      if (
+        item.href === "/admin/dashboard" ||
+        item.href === "/admin/subscriptions" ||
+        item.href === "/admin/menu" ||
+        isAdminHeaderNavItem(item)
+      ) {
+        return false;
+      }
+      if (item.platformOnly && !isPlatformAdmin) {
+        return false;
+      }
+      return hasAnyRole(current, item.roles);
+    }),
+    disabled.keys,
+  );
 
   const giftsInRange = data.summary.successfulCount;
   const cashGifts = data.summary.byMethod.CASH ?? 0;

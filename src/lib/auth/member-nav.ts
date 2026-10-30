@@ -25,10 +25,16 @@ export const MEMBER_NAV_ITEMS: readonly MemberNavItem[] = [
   { href: "/member/referrals", label: "Referrals", icon: "referrals" },
 ] as const;
 
-export function memberNavItemsForAccess(options: { canAccessRequisitions: boolean }) {
+export function memberNavItemsForAccess(options: {
+  canAccessRequisitions: boolean;
+  canAccessReferrals?: boolean;
+}) {
   return MEMBER_NAV_ITEMS.filter((item) => {
     if (item.href === "/member/requisitions") {
       return options.canAccessRequisitions;
+    }
+    if (item.href === "/member/referrals") {
+      return options.canAccessReferrals !== false;
     }
     return true;
   });

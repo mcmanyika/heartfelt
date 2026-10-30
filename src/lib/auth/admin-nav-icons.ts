@@ -11,6 +11,7 @@ import {
   Link2,
   Megaphone,
   MonitorSmartphone,
+  PanelTop,
   ScrollText,
   Settings,
   UserCog,
@@ -40,4 +41,5 @@ export const ADMIN_NAV_ICONS: Record<AdminNavItem["icon"], LucideIcon> = {
   settings: Settings,
   subscriptions: CreditCard,
   affiliate: Handshake,
+  menu: PanelTop,
 };

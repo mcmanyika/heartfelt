@@ -1,8 +1,10 @@
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable, DataTableBody, DataTableHead } from "@/components/ui/data-table";
 import { requireRole } from "@/lib/auth/require-role";
 import { getPersonalAffiliateDashboard } from "@/lib/services/affiliate.service";
+import { getDisabledNavKeys } from "@/lib/services/nav-access.service";
 import { PRODUCT_NAME } from "@/lib/tenant/config";
 import { formatDate, formatDateTime } from "@/lib/utils/format";
 
@@ -29,7 +31,11 @@ function commissionStatusLabel(status: string) {
 }
 
 export default async function MemberReferralsPage() {
-  await requireRole("MEMBER");
+  const current = await requireRole("MEMBER");
+  const disabled = await getDisabledNavKeys(current.organizationId);
+  if (disabled.keys.includes("affiliate")) {
+    redirect("/member/dashboard");
+  }
   const data = await getPersonalAffiliateDashboard();
 
   return (

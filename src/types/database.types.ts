@@ -1192,6 +1192,35 @@ export type Database = {
           },
         ];
       };
+      organization_nav_links: {
+        Row: {
+          organization_id: string;
+          nav_key: string;
+          enabled: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          organization_id: string;
+          nav_key: string;
+          enabled?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          organization_id?: string;
+          nav_key?: string;
+          enabled?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "organization_nav_links_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       organization_referrals: {
         Row: {
           referred_organization_id: string;
