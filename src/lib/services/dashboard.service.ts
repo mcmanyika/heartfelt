@@ -64,8 +64,9 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
 
   let terminalsQuery = supabase
     .from("payment_terminals")
-    .select("id, status")
-    .eq("organization_id", current.organizationId);
+    .select("id, status, terminal_code, device_name, locations(name, code)")
+    .eq("organization_id", current.organizationId)
+    .order("terminal_code");
   if (locationId) {
     terminalsQuery = terminalsQuery.eq("location_id", locationId);
   }
@@ -125,18 +126,42 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
   if (recentGiving.error) logServerError("dashboard.recentGiving", recentGiving.error);
 
   const summary = summarizeGiving(scoped.rows);
-  const locationRows = (locations.data ?? []) as Array<{ status: string }>;
-  const activeLocations = locationRows.filter((location) => location.status === "ACTIVE").length;
-  const locationCount = locationRows.length;
-  const onlineTerminals = ((terminals.data ?? []) as Array<{ status: string }>).filter(
-    (terminal) => terminal.status === "ONLINE",
-  ).length;
-
-  const membersByLocation = ((locations.data ?? []) as Array<{
+  const locationRows = (locations.data ?? []) as Array<{
+    id: string;
     name: string;
     code: string;
+    status: string;
     members: { count: number }[] | null;
-  }>).map((location) => ({
+  }>;
+  const activeLocations = locationRows.filter((location) => location.status === "ACTIVE").length;
+  const locationCount = locationRows.length;
+  const terminalRows = ((terminals.data ?? []) as Array<{
+    id: string;
+    status: string;
+    terminal_code: string;
+    device_name: string | null;
+    locations: { name: string; code: string } | { name: string; code: string }[] | null;
+  }>).map((terminal) => {
+    const location = Array.isArray(terminal.locations) ? terminal.locations[0] : terminal.locations;
+    return {
+      id: terminal.id,
+      status: terminal.status,
+      code: terminal.terminal_code,
+      name: terminal.device_name?.trim() || terminal.terminal_code,
+      locationLabel: location ? `${location.name} (${location.code})` : "—",
+    };
+  });
+  const onlineTerminals = terminalRows.filter((terminal) => terminal.status === "ONLINE").length;
+
+  const locationDetails = locationRows.map((location) => ({
+    id: location.id,
+    name: location.name,
+    code: location.code,
+    status: location.status,
+    memberCount: location.members?.[0]?.count ?? 0,
+  }));
+
+  const membersByLocation = locationRows.map((location) => ({
     name: `${location.name} (${location.code})`,
     members: location.members?.[0]?.count ?? 0,
   }));
@@ -159,7 +184,9 @@ export async function getDashboardData(range: DashboardRange, filters: Dashboard
     activeLocations,
     locationCount,
     onlineTerminals,
-    terminalCount: ((terminals.data ?? []) as unknown[]).length,
+    terminalCount: terminalRows.length,
+    terminals: terminalRows,
+    locations: locationDetails,
     summary,
     membersByLocation,
     membersByGender,

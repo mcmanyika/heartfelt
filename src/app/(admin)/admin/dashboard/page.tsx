@@ -1,10 +1,10 @@
 import { AdminNavTiles } from "@/components/admin/admin-nav-tiles";
 import { DashboardFiltersButton } from "@/components/admin/dashboard-filters-button";
+import { DashboardGauges } from "@/components/admin/dashboard-gauges";
 import {
   GivingByMethodChart,
   MembersByGenderChart,
 } from "@/components/charts/dashboard-charts";
-import { SpeedometerGauge } from "@/components/charts/speedometer-gauge";
 import { ADMIN_NAV_ITEMS, isAdminHeaderNavItem } from "@/lib/auth/admin-nav";
 import { hasAnyRole } from "@/lib/auth/permissions";
 import { isPlatformAdminEmail } from "@/lib/auth/platform-admin";
@@ -79,44 +79,19 @@ export default async function AdminDashboardPage({ searchParams }: DashboardPage
         />
       </div>
 
-      <section
-        aria-label="Performance gauges"
-        className="mb-4 grid gap-3 sm:grid-cols-3"
-      >
-        <SpeedometerGauge
-          label="Terminals online"
-          value={data.onlineTerminals}
-          max={data.terminalCount}
-          animationDelayMs={0}
-          detail={
-            data.terminalCount === 0
-              ? "No terminals registered"
-              : `${data.onlineTerminals} of ${data.terminalCount} online`
-          }
-        />
-        <SpeedometerGauge
-          label="Digital giving"
-          value={digitalGifts}
-          max={giftsInRange}
-          animationDelayMs={90}
-          detail={
-            giftsInRange === 0
-              ? "No gifts in this range"
-              : `${digitalGifts} of ${giftsInRange} non-cash`
-          }
-        />
-        <SpeedometerGauge
-          label="Locations active"
-          value={data.activeLocations}
-          max={data.locationCount}
-          animationDelayMs={180}
-          detail={
-            data.locationCount === 0
-              ? "No locations in scope"
-              : `${data.activeLocations} of ${data.locationCount} active`
-          }
-        />
-      </section>
+      <DashboardGauges
+        onlineTerminals={data.onlineTerminals}
+        terminalCount={data.terminalCount}
+        terminals={data.terminals}
+        digitalGifts={digitalGifts}
+        giftsInRange={giftsInRange}
+        byMethod={Object.entries(data.summary.byMethod)
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count)}
+        activeLocations={data.activeLocations}
+        locationCount={data.locationCount}
+        locations={data.locations}
+      />
 
       <section aria-label="Breakdown charts" className="mb-4 grid gap-3 md:grid-cols-2">
         <MembersByGenderChart
